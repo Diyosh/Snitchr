@@ -19,40 +19,34 @@ CORS(app)
 # Set Tesseract Path
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
-# Load Fake and Real news datasets
+# Load Datasets
 DATASET_PATH = "fakenews_dset"
 df_fake = pd.read_csv(os.path.join(DATASET_PATH, "Fake.csv"))
 df_true = pd.read_csv(os.path.join(DATASET_PATH, "True.csv"))
 
-# Assign labels
-df_fake['label'] = 1  # 1 = Fake
-df_true['label'] = 0  # 0 = Real
+df_fake['label'] = 1  # Fake
+df_true['label'] = 0  # Real
 
-# Combine datasets
 df = pd.concat([df_fake, df_true], ignore_index=True).dropna(subset=['text'])
 
-# Train-test split
 X_train, X_test, y_train, y_test = train_test_split(df['text'], df['label'], test_size=0.2, random_state=42)
 
-# Convert text to TF-IDF features
 vectorizer = TfidfVectorizer()
 X_train_tfidf = vectorizer.fit_transform(X_train)
 X_test_tfidf = vectorizer.transform(X_test)
 
-# Train Naïve Bayes Model
 model_nb = MultinomialNB()
 model_nb.fit(X_train_tfidf, y_train)
 
-# Evaluate Naive Bayes Model
 y_pred = model_nb.predict(X_test_tfidf)
 print(f"✅ Naive Bayes Accuracy: {accuracy_score(y_test, y_pred) * 100:.2f}%")
 print(f"✅ Naive Bayes F1 Score: {f1_score(y_test, y_pred):.2f}")
 print(f"✅ Naive Bayes Confusion Matrix:\n{confusion_matrix(y_test, y_pred)}")
 
-# Load CNN Model
+# CNN Model Handling
 cnn_model = None
-CNN_MODEL_PATH = "cnn_model/cnn_model (1).keras"  # This is your new folder structure
-CNN_LABELS_FLIPPED = True  # Set to True if CNN labels were reversed (1 = Real, 0 = Fake)
+CNN_MODEL_PATH = "cnn_model/cnn_model (1).keras"
+CNN_LABELS_FLIPPED = True  # ✅ Assume 1 = Fake, 0 = Real (adjust if needed)
 
 def load_cnn_model():
     global cnn_model
@@ -67,7 +61,6 @@ def load_cnn_model():
 
 load_cnn_model()
 
-# Image Processing Functions
 def preprocess_image(image_bytes):
     image = Image.open(BytesIO(image_bytes)).convert("L")
     img_cv = np.array(image)
@@ -79,7 +72,6 @@ def prepare_for_cnn(image_bytes):
     image = Image.open(BytesIO(image_bytes)).convert("RGB").resize((128, 128))
     return np.expand_dims(np.array(image) / 255.0, axis=0)
 
-# Routes
 @app.route('/predict/text', methods=['POST'])
 def predict_text():
     data = request.get_json()
@@ -104,30 +96,39 @@ def predict_image():
         return jsonify({'error': 'No image uploaded'}), 400
 
     image_bytes = request.files['image'].read()
+
     processed_image = preprocess_image(image_bytes)
     extracted_text = pytesseract.image_to_string(processed_image).strip()
 
     if not extracted_text:
         return jsonify({"error": "No text detected"}), 400
 
-    # Text-based prediction
     text_proba = model_nb.predict_proba(vectorizer.transform([extracted_text]))[0]
 
-    # CNN-based prediction (with label flip support)
+    # CNN Prediction
     if cnn_model:
         image_proba = cnn_model.predict(prepare_for_cnn(image_bytes))[0][0]
-        print(f"🔍 Raw CNN Model Probability (Fake class): {image_proba:.4f}")
+        print(f"🔍 CNN Raw Probability (Fake class): {image_proba:.4f}")
 
+        # ✅ Swap Logic - 1 = Fake, 0 = Real
         if CNN_LABELS_FLIPPED:
-            image_real = image_proba  # Assume Real = 1 in flipped case
-            image_fake = 1 - image_proba
+            image_fake = image_proba  # CNN says 1 = Fake
+            image_real = 1 - image_proba  # CNN says 0 = Real
         else:
-            image_fake = image_proba  # Assume Fake = 1 normally
-            image_real = 1 - image_proba
+            image_real = image_proba
+            image_fake = 1 - image_proba
     else:
-        image_real, image_fake = 0.5, 0.5  # Default if model not loaded
+        image_real, image_fake = 0.5, 0.5  # Default to 50-50 if CNN fails to load
+
+    # Fusion (Weighted average 70% text, 30% image)
+    weight_text = 0.7
+    weight_image = 0.3
+
+    combined_real = (weight_text * text_proba[0]) + (weight_image * image_real)
+    combined_fake = (weight_text * text_proba[1]) + (weight_image * image_fake)
 
     return jsonify({
+        "label": "News",
         "extracted_text": extracted_text,
         "text_based_prediction": {
             "Real": f"{text_proba[0] * 100:.2f}%",
@@ -136,6 +137,10 @@ def predict_image():
         "image_based_prediction": {
             "Real": f"{image_real * 100:.2f}%",
             "Fake": f"{image_fake * 100:.2f}%"
+        },
+        "combined_prediction": {
+            "Real": f"{combined_real * 100:.2f}%",
+            "Fake": f"{combined_fake * 100:.2f}%"
         }
     })
 
