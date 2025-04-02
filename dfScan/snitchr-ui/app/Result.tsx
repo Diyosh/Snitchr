@@ -6,9 +6,10 @@ export default function ResultsScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
 
-    const real = params.real ? parseFloat(params.real as string) || 0 : 0;
-    const fake = params.fake ? parseFloat(params.fake as string) || 0 : 0;
+    const real = parseFloat(params.real as string) || 0;
+    const fake = parseFloat(params.fake as string) || 0;
     const extractedText = (params.extractedText as string) || 'No text extracted.';
+    const message = (params.message as string) || '';
 
     const handleScanAnother = () => {
         Alert.alert(
@@ -24,9 +25,10 @@ export default function ResultsScreen() {
     const clearAndNavigateBack = () => {
         router.replace({ 
             pathname: '/', 
-            params: { clearData: 'true' } // send flag to clear
+            params: { clearData: 'true' }
         });
     };
+
     return (
         <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.contentContainer}>
             <Text style={styles.title}>CatchEd</Text>
@@ -47,6 +49,15 @@ export default function ResultsScreen() {
             <View style={styles.textBox}>
                 <Text style={styles.extractedText}>{extractedText}</Text>
             </View>
+
+            {message ? (
+                <>
+                    <Text style={[styles.sectionTitle, { color: 'red' }]}>Note</Text>
+                    <View style={styles.textBox}>
+                        <Text style={styles.extractedText}>{message}</Text>
+                    </View>
+                </>
+            ) : null}
 
             <TouchableOpacity onPress={handleScanAnother}>
                 <Text style={styles.scanAnotherText}>Scan Another News ↩️</Text>

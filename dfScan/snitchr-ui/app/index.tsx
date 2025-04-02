@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { 
-  View, Text, Image, TouchableOpacity, StyleSheet, Alert, Modal, ActivityIndicator, 
-  GestureResponderEvent
+import {
+  View, Text, Image, TouchableOpacity, StyleSheet, Alert, Modal, ActivityIndicator, Dimensions
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import axios from 'axios';
@@ -9,6 +8,10 @@ import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback } from 'react';
 import { useAppStore } from '../assets/zustand/store';
+
+const screenWidth = Dimensions.get('window').width;
+const imageBoxWidth = screenWidth * 0.9;
+const imageBoxHeight = imageBoxWidth * (4 / 5);
 
 export default function HomeScreen() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -19,7 +22,7 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
-        setSelectedImage(null);
+      setSelectedImage(null);
     }, [])
   );
 
@@ -36,7 +39,7 @@ export default function HomeScreen() {
     if (!(await requestMediaPermission())) return;
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'], 
+      mediaTypes: ['images'],
       allowsEditing: true,
       quality: 1,
     });
@@ -50,15 +53,21 @@ export default function HomeScreen() {
 
   const { setHasDetectionResult } = useAppStore();
 
-  const navigateToResults = (real: number, fake: number, extractedText: string) => {
+  const navigateToResults = (
+    real?: number,
+    fake?: number,
+    extractedText: string = '',
+    message?: string
+  ) => {
     setHasDetectionResult(true);
     router.push({
-        pathname: '/Result',
-        params: {
-            real: real.toFixed(2),
-            fake: fake.toFixed(2),
-            extractedText: extractedText || 'No text detected',
-        },
+      pathname: '/Result',
+      params: {
+        real: real?.toFixed(2) || '0.00',
+        fake: fake?.toFixed(2) || '0.00',
+        extractedText: extractedText || 'No text detected',
+        message: message || ''
+      },
     });
   };
 
@@ -78,11 +87,11 @@ export default function HomeScreen() {
     } as any);
 
     try {
-      const response = await axios.post('http://192.168.11.224:5000/predict/image', formData, {
+      const response = await axios.post('http://192.168.0.7:5000/predict/image', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      const { real, fake, extractedText } = response.data;
-      navigateToResults(real, fake, extractedText);
+      const { real, fake, extractedText, message } = response.data;
+      navigateToResults(real, fake, extractedText, message);
     } catch (error) {
       console.error('Image detection error:', error);
       Alert.alert('Error', 'Failed to detect image.');
@@ -91,15 +100,15 @@ export default function HomeScreen() {
     }
   };
 
-  function clearImage(event: GestureResponderEvent): void {
-    throw new Error('Function not implemented.');
+  function clearImage(): void {
+    setSelectedImage(null);
   }
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>CatchEd</Text>
 
-      <TouchableOpacity style={styles.imagePlaceholder} onPress={() => setIsModalVisible(true)}>
+      <TouchableOpacity style={[styles.imagePlaceholder, { width: imageBoxWidth, height: imageBoxHeight }]} onPress={() => setIsModalVisible(true)}>
         {selectedImage ? (
           <>
             <Image source={{ uri: selectedImage }} style={styles.image} />
@@ -146,21 +155,19 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16, backgroundColor: '#fff' },
   title: { fontSize: 24, fontWeight: 'bold', marginBottom: 4 },
-  imagePlaceholder: { 
-    width: 350,
-    height: 300, 
-    backgroundColor: '#f0f0f0', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    marginBottom: 20, 
-    borderRadius: 12, 
+  imagePlaceholder: {
+    backgroundColor: '#f0f0f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#ddd' 
+    borderColor: '#ddd'
   },
   image: { width: '100%', height: '100%', borderRadius: 12 },
-  closeButton: { 
+  closeButton: {
     position: 'absolute', top: 8, right: 8,
-    backgroundColor: 'red', width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' 
+    backgroundColor: 'red', width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center'
   },
   closeButtonText: { color: 'white', fontWeight: 'bold' },
   plusText: { fontSize: 48, fontWeight: 'bold', color: '#555' },
