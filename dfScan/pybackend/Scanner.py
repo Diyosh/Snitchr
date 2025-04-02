@@ -1,274 +1,198 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+from flask import Flask, request, jsonify  # type: ignore
+from flask_cors import CORS  # type: ignore
 import os
-import numpy as np
-import pandas as pd
-import pytesseract
-import cv2
-import tensorflow as tf
-from PIL import Image
+import numpy as np  # type: ignore
+import pytesseract  # type: ignore
+import cv2  # type: ignore
+import tensorflow as tf  # type: ignore
+from PIL import Image  # type: ignore
 from io import BytesIO
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.naive_bayes import MultinomialNB
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import confusion_matrix, accuracy_score, f1_score
+import re
+from sklearn.metrics import classification_report, confusion_matrix  # type: ignore
+import matplotlib.pyplot as plt  # type: ignore
+from tensorflow.keras.preprocessing.image import ImageDataGenerator  # type: ignore
+import joblib  # type: ignore 
 
+# Initialize Flask app
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+# Set Tesseract path
+pytesseract.pytesseract.tesseract_cmd = r'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
 
-# Load datasets
-def load_datasets():
-    dataset_path = "fakenews_dset"
-    df_fake = pd.read_csv(os.path.join(dataset_path, "Fake.csv"))
-    df_true = pd.read_csv(os.path.join(dataset_path, "True.csv"))
-
-    df_fake['label'] = 1
-    df_true['label'] = 0
-    df = pd.concat([df_fake, df_true], ignore_index=True).dropna(subset=['text'])
-    return df
-
-df = load_datasets()
-
-# Train Naive Bayes model
-X_train, X_test, y_train, y_test = train_test_split(df['text'], df['label'], test_size=0.2, random_state=42)
-vectorizer = TfidfVectorizer()
-X_train_tfidf = vectorizer.fit_transform(X_train)
-
-model_nb = MultinomialNB().fit(X_train_tfidf, y_train)
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-import os
-import numpy as np
-import pandas as pd
-import pytesseract
-import cv2
-import tensorflow as tf
-from PIL import Image
-from io import BytesIO
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.naive_bayes import MultinomialNB
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import confusion_matrix, accuracy_score, f1_score
-
-app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
-
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-
-# Load datasets
-def load_datasets():
-    dataset_path = "fakenews_dset"
-    df_fake = pd.read_csv(os.path.join(dataset_path, "Fake.csv"))
-    df_true = pd.read_csv(os.path.join(dataset_path, "True.csv"))
-
-    df_fake['label'] = 1
-    df_true['label'] = 0
-    df = pd.concat([df_fake, df_true], ignore_index=True).dropna(subset=['text'])
-    return df
-
-df = load_datasets()
-
-# Train Naive Bayes model
-X_train, X_test, y_train, y_test = train_test_split(df['text'], df['label'], test_size=0.2, random_state=42)
-vectorizer = TfidfVectorizer()
-X_train_tfidf = vectorizer.fit_transform(X_train)
-
-model_nb = MultinomialNB().fit(X_train_tfidf, y_train)
-
-# === Evaluation (prints only once at startup) ===
-X_test_tfidf = vectorizer.transform(X_test)
-y_pred = model_nb.predict(X_test_tfidf)
-
-conf_matrix = confusion_matrix(y_test, y_pred)
-accuracy = accuracy_score(y_test, y_pred)
-f1 = f1_score(y_test, y_pred)
-
-print("\n===== Naive Bayes Model Evaluation =====")
-print(f"Confusion Matrix:\n{conf_matrix}")
-print(f"Accuracy: {accuracy:.4f}")
-print(f"F1 Score: {f1:.4f}")
-print("=========================================\n")
-
-# Load CNN Model
+# Load CNN model
 cnn_model = None
-CNN_MODEL_PATH = "cnn_model/cnn_model (1).keras"
+CNN_MODEL_PATH = "cnn_model/CatchED_CNN.keras"
 CNN_LABELS_FLIPPED = True
 
-def load_cnn_model():
-    global cnn_model
+# Load NLP model
+nlp_model = None
+vectorizer = None
+NLP_MODEL_PATH = "nlp_model/fake_news_nlp_model.pkl"
+VECTORIZER_PATH = "nlp_model/vectorizer.pkl"
+
+# Education keywords
+EDU_KEYWORDS = [
+    "ched", "deped", "education", "school", "students", "class suspension",
+    "semester", "tuition", "graduation", "k-12", "teacher", "elementary", "high school",
+    "college", "senior high", "philippine education", "scholarship", "enrollment", 
+    "university", "academic"
+]
+
+# Load models
+def load_models():
+    global cnn_model, nlp_model, vectorizer
     if os.path.exists(CNN_MODEL_PATH):
         cnn_model = tf.keras.models.load_model(CNN_MODEL_PATH)
-        print("✅ CNN model loaded")
+        print("✅ CNN model loaded.")
     else:
-        print("❌ CNN model not found")
+        print("❌ CNN model not found.")
 
-load_cnn_model()
+    if os.path.exists(NLP_MODEL_PATH) and os.path.exists(VECTORIZER_PATH):
+        nlp_model = joblib.load(NLP_MODEL_PATH)
+        vectorizer = joblib.load(VECTORIZER_PATH)
+        print("✅ NLP model and vectorizer loaded.")
+    else:
+        print("❌ NLP model or vectorizer not found.")
 
-# Image Processing Functions
+load_models()
+
+# Utility: Clean text
+
+def clean_ocr_text(text):
+    text = re.sub(r'[^\w\s.,!?-]', ' ', text)
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text
+
+# Check if text is education-related
+
+def is_education_related(text):
+    text = text.lower()
+    return any(keyword in text for keyword in EDU_KEYWORDS)
+
+# Preprocess image for OCR
+
 def preprocess_image_for_ocr(image_bytes):
-    image = Image.open(BytesIO(image_bytes)).convert("L")
+    image = Image.open(BytesIO(image_bytes)).convert("RGB")
     img_cv = np.array(image)
-    img_cv = cv2.GaussianBlur(img_cv, (5, 5), 0)
-    img_cv = cv2.adaptiveThreshold(img_cv, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
-    return Image.fromarray(img_cv)
+
+    # Convert to grayscale
+    gray = cv2.cvtColor(img_cv, cv2.COLOR_RGB2GRAY)
+
+    # Denoise
+    denoised = cv2.bilateralFilter(gray, 9, 75, 75)
+
+    # Sharpen
+    kernel = np.array([[0, -1, 0],
+                       [-1, 5, -1],
+                       [0, -1, 0]])
+    sharpened = cv2.filter2D(denoised, -1, kernel)
+
+    # Increase contrast
+    contrasted = cv2.convertScaleAbs(sharpened, alpha=1.5, beta=0)
+
+    # Adaptive Thresholding
+    thresh = cv2.adaptiveThreshold(contrasted, 255,
+                                   cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                   cv2.THRESH_BINARY, 11, 2)
+
+    return Image.fromarray(thresh)
+
+# Preprocess image for CNN
 
 def prepare_for_cnn(image_bytes):
     image = Image.open(BytesIO(image_bytes)).convert("RGB").resize((128, 128))
     return np.expand_dims(np.array(image) / 255.0, axis=0)
 
-# API Routes
-@app.route('/predict/text', methods=['POST'])
-def predict_text():
-    data = request.get_json()
-    article = data.get('text', '').strip()
+# NLP-based prediction
 
-    if not article:
-        return jsonify({'error': 'No text provided'}), 400
+def predict_text_fake_news(text):
+    if not nlp_model or not vectorizer:
+        return None
+    text_vector = vectorizer.transform([text])
+    prediction = nlp_model.predict_proba(text_vector)[0][1]  # Probability of being fake
+    return prediction
 
-    article_tfidf = vectorizer.transform([article])
-    proba = model_nb.predict_proba(article_tfidf)[0]
-
-    return jsonify({
-        "real": proba[0] * 100,
-        "fake": proba[1] * 100,
-    })
+# Main endpoint: Image → OCR + CNN + NLP Prediction
 
 @app.route('/predict/image', methods=['POST'])
 def predict_image():
     if 'image' not in request.files:
-        return jsonify({'error': 'No image uploaded'}), 400
+        return jsonify({'error': 'No image uploaded.'}), 400
 
     image_bytes = request.files['image'].read()
 
+    # OCR text extraction
     processed_image = preprocess_image_for_ocr(image_bytes)
     extracted_text = pytesseract.image_to_string(processed_image).strip()
+    cleaned_text = clean_ocr_text(extracted_text)
 
-    text_proba = [0.5, 0.5]
-    if extracted_text:
-        text_proba = model_nb.predict_proba(vectorizer.transform([extracted_text]))[0]
+    # Check if content is education-related
+    if not is_education_related(cleaned_text):
+        return jsonify({
+            "message": "❌ This post is not related to the scope of CatchED. Only education-related content in the Philippines is supported.",
+            "extractedText": cleaned_text
+        }), 200
 
-    image_real, image_fake = 0.5, 0.5
+    # CNN prediction
+    cnn_real, cnn_fake = 0.5, 0.5
     if cnn_model:
-        cnn_proba = cnn_model.predict(prepare_for_cnn(image_bytes))[0][0]
+        prediction = cnn_model.predict(prepare_for_cnn(image_bytes))[0][0]
         if CNN_LABELS_FLIPPED:
-            image_fake = cnn_proba
-            image_real = 1 - cnn_proba
+            cnn_fake = prediction
+            cnn_real = 1 - prediction
         else:
-            image_real = cnn_proba
-            image_fake = 1 - cnn_proba
+            cnn_real = prediction
+            cnn_fake = 1 - prediction
 
-    combined_real = (0.7 * text_proba[0]) + (0.3 * image_real)
-    combined_fake = (0.7 * text_proba[1]) + (0.3 * image_fake)
+    # NLP prediction
+    nlp_fake = predict_text_fake_news(cleaned_text)
+    nlp_real = 1 - nlp_fake if nlp_fake is not None else None
 
     return jsonify({
-        "extractedText": extracted_text or "No text detected",
-        "real": combined_real * 100,
-        "fake": combined_fake * 100
+        "extractedText": cleaned_text or "No text detected.",
+        "cnn_prediction": {"real": round(cnn_real * 100, 2), "fake": round(cnn_fake * 100, 2)},
+        "nlp_prediction": {"real": round(nlp_real * 100, 2), "fake": round(nlp_fake * 100, 2)} if nlp_fake is not None else "NLP model not available"
     })
 
+# Evaluation route for CNN
+@app.route('/evaluate/cnn', methods=['GET'])
+def evaluate_cnn():
+    if not cnn_model:
+        return jsonify({"error": "CNN model not loaded"}), 500
+
+    DATASET_DIR = "dataset"
+    IMAGE_SIZE = (128, 128)
+    BATCH_SIZE = 32
+
+    test_datagen = ImageDataGenerator(rescale=1./255, validation_split=0.2)
+    test_generator = test_datagen.flow_from_directory(
+        DATASET_DIR,
+        target_size=IMAGE_SIZE,
+        batch_size=BATCH_SIZE,
+        class_mode='binary',
+        subset='validation',
+        shuffle=False
+    )
+
+    predictions = cnn_model.predict(test_generator)
+    y_pred = (predictions > 0.5).astype(int).flatten()
+    y_true = test_generator.classes
+
+    class_labels = list(test_generator.class_indices.keys())
+    report = classification_report(y_true, y_pred, target_names=class_labels, output_dict=True)
+    conf_matrix = confusion_matrix(y_true, y_pred).tolist()
+
+    return jsonify({
+        "classification_report": report,
+        "confusion_matrix": conf_matrix,
+        "labels": class_labels
+    })
+
+# Root test route
 @app.route('/')
 def home():
-    return jsonify({"message": "Fake News Scanner API is running."})
-
-if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5000, debug=True)
-
-# === Evaluation (prints only once at startup) ===
-X_test_tfidf = vectorizer.transform(X_test)
-y_pred = model_nb.predict(X_test_tfidf)
-
-conf_matrix = confusion_matrix(y_test, y_pred)
-accuracy = accuracy_score(y_test, y_pred)
-f1 = f1_score(y_test, y_pred)
-
-print("\n===== Naive Bayes Model Evaluation =====")
-print(f"Confusion Matrix:\n{conf_matrix}")
-print(f"Accuracy: {accuracy:.4f}")
-print(f"F1 Score: {f1:.4f}")
-print("=========================================\n")
-
-# Load CNN Model
-cnn_model = None
-CNN_MODEL_PATH = "cnn_model/cnn_model (1).keras"
-CNN_LABELS_FLIPPED = True
-
-def load_cnn_model():
-    global cnn_model
-    if os.path.exists(CNN_MODEL_PATH):
-        cnn_model = tf.keras.models.load_model(CNN_MODEL_PATH)
-        print("✅ CNN model loaded")
-    else:
-        print("❌ CNN model not found")
-
-load_cnn_model()
-
-# Image Processing Functions
-def preprocess_image_for_ocr(image_bytes):
-    image = Image.open(BytesIO(image_bytes)).convert("L")
-    img_cv = np.array(image)
-    img_cv = cv2.GaussianBlur(img_cv, (5, 5), 0)
-    img_cv = cv2.adaptiveThreshold(img_cv, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
-    return Image.fromarray(img_cv)
-
-def prepare_for_cnn(image_bytes):
-    image = Image.open(BytesIO(image_bytes)).convert("RGB").resize((128, 128))
-    return np.expand_dims(np.array(image) / 255.0, axis=0)
-
-# API Routes
-@app.route('/predict/text', methods=['POST'])
-def predict_text():
-    data = request.get_json()
-    article = data.get('text', '').strip()
-
-    if not article:
-        return jsonify({'error': 'No text provided'}), 400
-
-    article_tfidf = vectorizer.transform([article])
-    proba = model_nb.predict_proba(article_tfidf)[0]
-
-    return jsonify({
-        "real": proba[0] * 100,
-        "fake": proba[1] * 100,
-    })
-
-@app.route('/predict/image', methods=['POST'])
-def predict_image():
-    if 'image' not in request.files:
-        return jsonify({'error': 'No image uploaded'}), 400
-
-    image_bytes = request.files['image'].read()
-
-    processed_image = preprocess_image_for_ocr(image_bytes)
-    extracted_text = pytesseract.image_to_string(processed_image).strip()
-
-    text_proba = [0.5, 0.5]
-    if extracted_text:
-        text_proba = model_nb.predict_proba(vectorizer.transform([extracted_text]))[0]
-
-    image_real, image_fake = 0.5, 0.5
-    if cnn_model:
-        cnn_proba = cnn_model.predict(prepare_for_cnn(image_bytes))[0][0]
-        if CNN_LABELS_FLIPPED:
-            image_fake = cnn_proba
-            image_real = 1 - cnn_proba
-        else:
-            image_real = cnn_proba
-            image_fake = 1 - cnn_proba
-
-    combined_real = (0.7 * text_proba[0]) + (0.3 * image_real)
-    combined_fake = (0.7 * text_proba[1]) + (0.3 * image_fake)
-
-    return jsonify({
-        "extractedText": extracted_text or "No text detected",
-        "real": combined_real * 100,
-        "fake": combined_fake * 100
-    })
-
-@app.route('/')
-def home():
-    return jsonify({"message": "Fake News Scanner API is running."})
+    return jsonify({"message": "CatchED API is live – Powered by CNN, OCR, and NLP 🔍🧠"})
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000, debug=True)

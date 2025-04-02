@@ -29,7 +29,7 @@ export default function ResultsScreen() {
     };
     return (
         <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.contentContainer}>
-            <Text style={styles.title}>SNITCHR</Text>
+            <Text style={styles.title}>CatchEd</Text>
 
             <Text style={styles.sectionTitle}>Detection Statistics</Text>
             <View style={styles.statsContainer}>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { 
-  View, Text, Image, TouchableOpacity, StyleSheet, Alert, Modal, TextInput, ActivityIndicator, 
+  View, Text, Image, TouchableOpacity, StyleSheet, Alert, Modal, ActivityIndicator, 
   GestureResponderEvent
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -13,8 +13,6 @@ import { useAppStore } from '../assets/zustand/store';
 export default function HomeScreen() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [isTextModalVisible, setIsTextModalVisible] = useState(false);
-  const [enteredText, setEnteredText] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
 
   const router = useRouter();
@@ -22,10 +20,8 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
         setSelectedImage(null);
-        setEnteredText('');
     }, [])
-);
-
+  );
 
   const requestMediaPermission = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -43,9 +39,8 @@ export default function HomeScreen() {
       mediaTypes: ['images'], 
       allowsEditing: true,
       quality: 1,
-  });
-  
-  
+    });
+
     if (!result.canceled && result.assets?.length > 0) {
       setSelectedImage(result.assets[0].uri);
     }
@@ -53,15 +48,10 @@ export default function HomeScreen() {
     setIsModalVisible(false);
   };
 
-  const handlePasteText = () => {
-    setIsTextModalVisible(true);
-    setIsModalVisible(false);
-  };
-
   const { setHasDetectionResult } = useAppStore();
 
-const navigateToResults = (real: number, fake: number, extractedText: string) => {
-    setHasDetectionResult(true); // <-- Set this when detection is successful
+  const navigateToResults = (real: number, fake: number, extractedText: string) => {
+    setHasDetectionResult(true);
     router.push({
         pathname: '/Result',
         params: {
@@ -70,26 +60,6 @@ const navigateToResults = (real: number, fake: number, extractedText: string) =>
             extractedText: extractedText || 'No text detected',
         },
     });
-};
-
-  const detectText = async () => {
-    if (!enteredText.trim()) {
-      Alert.alert('Error', 'Please enter some text.');
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      const response = await axios.post('http://192.168.159.244:5000/predict/text', { text: enteredText });
-      const { real, fake } = response.data;
-      navigateToResults(real, fake, enteredText);
-    } catch (error) {
-      console.error('Text detection error:', error);
-      Alert.alert('Error', 'Failed to detect text.');
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const detectImage = async () => {
@@ -108,7 +78,7 @@ const navigateToResults = (real: number, fake: number, extractedText: string) =>
     } as any);
 
     try {
-      const response = await axios.post('http://192.168.159.244:5000/predict/image', formData, {
+      const response = await axios.post('http://192.168.11.224:5000/predict/image', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       const { real, fake, extractedText } = response.data;
@@ -127,22 +97,13 @@ const navigateToResults = (real: number, fake: number, extractedText: string) =>
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>SNITCHR</Text>
+      <Text style={styles.title}>CatchEd</Text>
 
       <TouchableOpacity style={styles.imagePlaceholder} onPress={() => setIsModalVisible(true)}>
         {selectedImage ? (
           <>
             <Image source={{ uri: selectedImage }} style={styles.image} />
             <TouchableOpacity style={styles.closeButton} onPress={clearImage}>
-              <Text style={styles.closeButtonText}>X</Text>
-            </TouchableOpacity>
-          </>
-        ) : enteredText ? (
-          <>
-            <Text style={styles.pastedText} numberOfLines={5} ellipsizeMode="tail">
-              {enteredText}
-            </Text>
-            <TouchableOpacity style={styles.closeButton} onPress={() => setEnteredText('')}>
               <Text style={styles.closeButtonText}>X</Text>
             </TouchableOpacity>
           </>
@@ -154,14 +115,6 @@ const navigateToResults = (real: number, fake: number, extractedText: string) =>
       <Text style={styles.sectionTitle}>Select Detection Method</Text>
 
       <View style={styles.buttonRow}>
-        <TouchableOpacity
-          style={[styles.methodButton, !enteredText && styles.disabledButton]}
-          onPress={detectText}
-          disabled={!enteredText || isLoading}
-        >
-          <Text>Text Detection</Text>
-        </TouchableOpacity>
-
         <TouchableOpacity
           style={[styles.methodButton, !selectedImage && styles.disabledButton]}
           onPress={detectImage}
@@ -177,9 +130,6 @@ const navigateToResults = (real: number, fake: number, extractedText: string) =>
         <View style={styles.modalBackground}>
           <View style={styles.modalContainer}>
             <Text style={styles.modalTitle}>Choose Input Method</Text>
-            <TouchableOpacity style={styles.modalButton} onPress={handlePasteText}>
-              <Text>📄 Paste/Enter Text</Text>
-            </TouchableOpacity>
             <TouchableOpacity style={styles.modalButton} onPress={handleImageUpload}>
               <Text>📷 Upload Image</Text>
             </TouchableOpacity>
@@ -189,40 +139,13 @@ const navigateToResults = (real: number, fake: number, extractedText: string) =>
           </View>
         </View>
       </Modal>
-
-      <Modal visible={isTextModalVisible} transparent animationType="slide">
-        <View style={styles.modalBackground}>
-          <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>Paste or Enter Text</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="Enter text here..."
-              multiline
-              value={enteredText}
-              onChangeText={setEnteredText}
-            />
-            <TouchableOpacity style={styles.saveButton} onPress={() => setIsTextModalVisible(false)}>
-              <Text style={styles.saveButtonText}>Save </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
+
 const styles = StyleSheet.create({
-  container: 
-  { flex: 1, 
-    alignItems: 'center',
-     justifyContent: 'center', 
-     padding: 16, 
-     backgroundColor: '#fff' 
-    },
-  title: { 
-    fontSize: 24, 
-    fontWeight: 'bold', 
-    marginBottom: 4 
-  },
+  container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16, backgroundColor: '#fff' },
+  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 4 },
   imagePlaceholder: { 
     width: 350,
     height: 300, 
@@ -234,102 +157,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ddd' 
   },
-  image: {
-    width: '100%', 
-    height: '100%', 
-    borderRadius: 12 
-  },
+  image: { width: '100%', height: '100%', borderRadius: 12 },
   closeButton: { 
-    position: 'absolute', 
-    top: 8, right: 8,
-    backgroundColor: 'red', 
-    width: 30, height: 30, 
-    borderRadius: 15, 
-    alignItems: 'center', 
-    justifyContent: 'center' 
+    position: 'absolute', top: 8, right: 8,
+    backgroundColor: 'red', width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' 
   },
-  closeButtonText: 
-  { 
-    color: 'white', 
-    fontWeight: 'bold' 
-  },
-  plusText: 
-  { 
-    fontSize: 48, 
-    fontWeight: 'bold', 
-    color: '#555' 
-  },
-  pastedText: 
-  { 
-    fontSize: 14, 
-    color: '#333', 
-    textAlign: 'center' 
-  },
-  sectionTitle: 
-  { 
-    fontWeight: 'bold', 
-    marginBottom: 10 
-  },
-  buttonRow: 
-  { 
-    flexDirection: 'row', 
-    gap: 12 
-  },
-  methodButton: 
-  { 
-    padding: 12, 
-    borderWidth: 1, 
-    borderColor: '#000', 
-    borderRadius: 8 
-  },
-  disabledButton: 
-  { 
-    opacity: 0.5 
-  },
-  modalBackground: 
-  { 
-    flex: 1, justifyContent: 'center', 
-    alignItems: 'center', 
-    backgroundColor: 'rgba(0,0,0,0.5)' 
-  },
-  modalContainer: 
-  { padding: 25,
-    backgroundColor: 'white', 
-    borderRadius: 10, 
-    alignItems: 'center' 
-  },
-  modalTitle: { 
-    fontSize: 15, 
-    fontWeight: 'bold', 
-    marginBottom: 10 
-  },
-  modalButton: 
-  { 
-    padding: 12, 
-    marginBottom: 8, 
-    backgroundColor: '#f0f0f0', 
-    borderRadius: 8 
-  },
-  textInput: { 
-    width: 300, 
-    height: 100, 
-    borderWidth: 1, 
-    padding: 10 
-  },
-  saveButton: { 
-    marginTop: 10,
-    backgroundColor: '#007BFF', 
-    padding: 15,
-    borderRadius: 10 
-  },
-  saveButtonText: { 
-    color: 'white',
-    alignItems: 'center',
-  },
-  closeText: {
-    color: 'red',
-    fontWeight: 'bold',
-  },
-  
+  closeButtonText: { color: 'white', fontWeight: 'bold' },
+  plusText: { fontSize: 48, fontWeight: 'bold', color: '#555' },
+  sectionTitle: { fontWeight: 'bold', marginBottom: 10 },
+  buttonRow: { flexDirection: 'row', gap: 12 },
+  methodButton: { padding: 12, borderWidth: 1, borderColor: '#000', borderRadius: 8 },
+  disabledButton: { opacity: 0.5 },
+  modalBackground: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
+  modalContainer: { padding: 25, backgroundColor: 'white', borderRadius: 10, alignItems: 'center' },
+  modalTitle: { fontSize: 15, fontWeight: 'bold', marginBottom: 10 },
+  modalButton: { padding: 12, marginBottom: 8, backgroundColor: '#f0f0f0', borderRadius: 8 },
+  closeText: { color: 'red', fontWeight: 'bold' },
 });
-
