@@ -1,129 +1,163 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import {
+  View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Alert
+} from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { PieChart } from 'react-native-chart-kit';
+import { useAppStore } from '../assets/zustand/store';
+
+const screenWidth = Dimensions.get('window').width;
 
 export default function ResultsScreen() {
-    const router = useRouter();
-    const params = useLocalSearchParams();
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  const { resetStore } = useAppStore();
 
-    const real = parseFloat(params.real as string) || 0;
-    const fake = parseFloat(params.fake as string) || 0;
-    const extractedText = (params.extractedText as string) || 'No text extracted.';
-    const message = (params.message as string) || '';
+  const [real, setReal] = useState(0);
+  const [fake, setFake] = useState(0);
+  const [extractedText, setExtractedText] = useState('');
+  const [analytics, setAnalytics] = useState({
+    suspicious_words: 0,
+    informal_words: 0,
+    malicious_words: 0,
+    inconsistency_score: 0
+  });
+  const [adjustmentReason, setAdjustmentReason] = useState('');
+  const [noEngagementWarning, setNoEngagementWarning] = useState('');
+  const [darkMode, setDarkMode] = useState(false);
 
-    const handleScanAnother = () => {
-        Alert.alert(
-            "Scan Another News",
-            "Are you sure you want to scan a new news article? This will clear the current results.",
-            [
-                { text: "Cancel", style: "cancel" },
-                { text: "Yes", onPress: clearAndNavigateBack }
-            ]
-        );
-    };
+  useEffect(() => {
+    if (params) {
+      const realParsed = parseFloat(params.real as string);
+      const fakeParsed = parseFloat(params.fake as string);
+      setReal(isNaN(realParsed) ? 0 : realParsed);
+      setFake(isNaN(fakeParsed) ? 0 : fakeParsed);
+      setExtractedText(typeof params.extractedText === 'string' ? params.extractedText : '');
+      setAdjustmentReason(typeof params.adjustment_reason === 'string' ? params.adjustment_reason : '');
+      setNoEngagementWarning(typeof params.no_engagement_warning === 'string' ? params.no_engagement_warning : '');
 
-    const clearAndNavigateBack = () => {
-        router.replace({ 
-            pathname: '/', 
-            params: { clearData: 'true' }
+      try {
+        const parsed = typeof params.analytics === 'string' ? JSON.parse(params.analytics) : {};
+        setAnalytics({
+          suspicious_words: parsed?.suspicious_words || 0,
+          informal_words: parsed?.informal_words || 0,
+          malicious_words: parsed?.malicious_words || 0,
+          inconsistency_score: parsed?.inconsistency_score || 0,
         });
-    };
+      } catch (e) {
+        console.warn('Invalid analytics JSON', e);
+      }
+    }
+  }, [params.real, params.fake, params.extractedText, params.analytics]);
 
-    return (
-        <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.contentContainer}>
-            <Text style={styles.title}>CatchEd</Text>
+  const handleScanAnother = () => {
+    Alert.alert('Scan Another', 'Clear current results?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Yes', onPress: () => {
+          resetStore();
+          router.replace('/');
+        }
+      }
+    ]);
+  };
 
-            <Text style={styles.sectionTitle}>Detection Statistics</Text>
-            <View style={styles.statsContainer}>
-                <View style={styles.statBox}>
-                    <Text style={styles.statLabel}>Real</Text>
-                    <Text style={styles.statValue}>{real}%</Text>
-                </View>
-                <View style={styles.statBox}>
-                    <Text style={styles.statLabel}>Fake</Text>
-                    <Text style={styles.statValue}>{fake}%</Text>
-                </View>
-            </View>
-
-            <Text style={styles.sectionTitle}>Extracted Text</Text>
-            <View style={styles.textBox}>
-                <Text style={styles.extractedText}>{extractedText}</Text>
-            </View>
-
-            {message ? (
-                <>
-                    <Text style={[styles.sectionTitle, { color: 'red' }]}>Note</Text>
-                    <View style={styles.textBox}>
-                        <Text style={styles.extractedText}>{message}</Text>
-                    </View>
-                </>
-            ) : null}
-
-            <TouchableOpacity onPress={handleScanAnother}>
-                <Text style={styles.scanAnotherText}>Scan Another News ↩️</Text>
-            </TouchableOpacity>
-        </ScrollView>
-    );
-}
-
-const styles = StyleSheet.create({
-    scrollContainer: {
-        flex: 1,
-        backgroundColor: '#fff',
+  const pieData = [
+    {
+      name: 'Suspicious',
+      population: analytics.suspicious_words,
+      color: '#ff6384',
+      legendFontColor: darkMode ? '#fff' : '#000',
+      legendFontSize: 14
     },
-    contentContainer: {
-        padding: 16,
-        paddingBottom: 40, 
+    {
+      name: 'Informal',
+      population: analytics.informal_words,
+      color: '#ffcd56',
+      legendFontColor: darkMode ? '#fff' : '#000',
+      legendFontSize: 14
     },
-    title: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        marginBottom: 16,
-        textAlign: 'center',
+    {
+      name: 'Malicious',
+      population: analytics.malicious_words,
+      color: '#36a2eb',
+      legendFontColor: darkMode ? '#fff' : '#000',
+      legendFontSize: 14
+    }
+  ].filter(item => item.population > 0);
+
+  const styles = StyleSheet.create({
+    container: { flex: 1, backgroundColor: darkMode ? '#000' : '#fff', paddingHorizontal: 16 },
+    topBar: {
+      width: '100%',
+      paddingVertical: 10,
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
     },
-    sectionTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginTop: 16,
-        marginBottom: 8,
-    },
-    statsContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 16,
-    },
+    title: { fontSize: 24, fontWeight: 'bold', color: darkMode ? '#fff' : '#213555', marginBottom: 10 },
     statBox: {
-        width: '45%',
-        padding: 16,
-        borderWidth: 1,
-        borderColor: '#ccc',
-        borderRadius: 8,
-        alignItems: 'center',
+      width: '48%', padding: 16, borderRadius: 8, backgroundColor: darkMode ? '#333' : '#f0f0f0',
+      alignItems: 'center', borderColor: '#213555', borderWidth: 1, marginVertical: 10
     },
-    statLabel: {
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-    statValue: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        marginTop: 8,
-    },
-    textBox: {
-        backgroundColor: '#f0f0f0',
-        padding: 16,
-        borderRadius: 8,
-        maxHeight: 300, 
-    },
-    extractedText: {
-        fontSize: 14,
-        color: '#333',
-    },
-    scanAnotherText: {
-        marginTop: 20,
-        fontSize: 16,
-        color: '#007bff',
-        textAlign: 'center',
-        fontWeight: 'bold',
-    },
-});
+    statLabel: { fontSize: 16, fontWeight: '600', color: darkMode ? '#fff' : '#213555' },
+    statValue: { fontSize: 24, fontWeight: 'bold', color: darkMode ? '#fff' : '#213555' },
+    sectionTitle: { fontSize: 18, fontWeight: 'bold', marginVertical: 10, color: darkMode ? '#fff' : '#213555' },
+    textBlock: { backgroundColor: darkMode ? '#222' : '#f9f9f9', padding: 12, borderRadius: 8 },
+    scanBtn: { marginTop: 24, textAlign: 'center', color: '#007bff', fontWeight: 'bold', fontSize: 16, marginBottom: 40 }
+  });
+
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 60 }}>
+      <View style={styles.topBar}>
+        <TouchableOpacity onPress={() => setDarkMode(!darkMode)}>
+          <Ionicons name={darkMode ? 'sunny' : 'moon'} size={24} color={darkMode ? '#fff' : '#213555'} />
+        </TouchableOpacity>
+      </View>
+
+      <Text style={styles.title}>Detection Result</Text>
+
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+        <View style={styles.statBox}><Text style={styles.statLabel}>Real</Text><Text style={styles.statValue}>{real}%</Text></View>
+        <View style={styles.statBox}><Text style={styles.statLabel}>Fake</Text><Text style={styles.statValue}>{fake}%</Text></View>
+      </View>
+
+      <Text style={styles.sectionTitle}>Extracted Text</Text>
+      <View style={styles.textBlock}><Text style={{ color: darkMode ? '#fff' : '#000' }}>{extractedText}</Text></View>
+
+      <Text style={styles.sectionTitle}>Text-Based Analysis</Text>
+      <View style={styles.textBlock}>
+        <Text style={{ color: darkMode ? '#fff' : '#000' }}>Suspicious Words: {analytics.suspicious_words}</Text>
+        <Text style={{ color: darkMode ? '#fff' : '#000' }}>Informal Words: {analytics.informal_words}</Text>
+        <Text style={{ color: darkMode ? '#fff' : '#000' }}>Malicious Words: {analytics.malicious_words}</Text>
+        <Text style={{ color: darkMode ? '#fff' : '#000' }}>Inconsistency Score: {analytics.inconsistency_score}</Text>
+      </View>
+
+      {pieData.length > 0 && (
+        <PieChart
+          data={pieData}
+          width={screenWidth - 32}
+          height={220}
+          chartConfig={{
+            backgroundColor: 'transparent',
+            backgroundGradientFrom: '#fff',
+            backgroundGradientTo: '#fff',
+            color: (opacity = 1) => `rgba(0,0,0,${opacity})`,
+            labelColor: () => darkMode ? '#fff' : '#000',
+          }}
+          accessor="population"
+          backgroundColor="transparent"
+          paddingLeft="15"
+          absolute
+        />
+      )}
+
+      {adjustmentReason ? <Text style={{ color: 'orange', marginTop: 10 }}>⚖️ {adjustmentReason}</Text> : null}
+      {noEngagementWarning ? <Text style={{ color: 'red' }}>⚠️ {noEngagementWarning}</Text> : null}
+
+      <TouchableOpacity onPress={handleScanAnother}>
+        <Text style={styles.scanBtn}>Scan Another News ↩️</Text>
+      </TouchableOpacity>
+    </ScrollView>
+  );
+}
