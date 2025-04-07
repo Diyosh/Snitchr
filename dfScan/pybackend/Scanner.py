@@ -1,229 +1,221 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+from flask import Flask, request, jsonify # type: ignore
+from flask_cors import CORS # type: ignore
 import os
-import numpy as np
-import pytesseract
-import cv2
-import tensorflow as tf
-from PIL import Image
+import numpy as np # type: ignore
+import pytesseract # type: ignore
+import cv2 # type: ignore
+import tensorflow as tf # type: ignore
+from PIL import Image # type: ignore
 from io import BytesIO
 import re
-from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
-import joblib
-from fuzzywuzzy import fuzz
-import pandas as pd
+import joblib # type: ignore
 import random
+import difflib
 
 os.environ['TF_DETERMINISTIC_OPS'] = '1'
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
+CORS(app)
 
 pytesseract.pytesseract.tesseract_cmd = r'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
 
-cnn_model = None
+# Load paths
 CNN_MODEL_PATH = "cnn_model/CatchEd_CNN_Balanced.keras"
-
-text_model = None
-vectorizer = None
 TEXT_MODEL_PATH = "dataset_text/CatchEd_LogReg_Model.pkl"
 VECTORIZER_PATH = "dataset_text/CatchEd_Tfidf_Vectorizer.pkl"
 
+# Load models safely
+cnn_model = tf.keras.models.load_model(CNN_MODEL_PATH) if os.path.exists(CNN_MODEL_PATH) else None
+text_model = joblib.load(TEXT_MODEL_PATH) if os.path.exists(TEXT_MODEL_PATH) else None
+vectorizer = joblib.load(VECTORIZER_PATH) if os.path.exists(VECTORIZER_PATH) else None
+
+# Keywords and institution links
 EDU_KEYWORDS = [
-    "ched", "deped", "education", "school", "class suspension", "students",
-    "semester", "tuition", "graduation", "k-12", "teacher", "elementary", "high school",
-    "college", "senior high", "philippine education", "scholarship", "enrollment", 
-    "university", "academic", "advisory", "deped order", "online class", "announcement",
-    "modules", "exam", "board exam", "DepEd Philippines", "CHED Philippines", "walang pasok",
-    "classes"
+    "ched", "deped", "education", "school", "students", "academic", "university",
+    "tuition", "exam", "modules", "k-12", "DepEd Philippines", "CHED Philippines",
+    "walang pasok", "board exam", "college", "class suspension"
 ]
 
 SUSPICIOUS_WORDS = [
     "breaking", "update", "trending", "urgent", "announcement", 
     "confirmed", "free", "official", "legit", "viral", "share", 
-    "campaign", "election", "rally","spotted"
+    "campaign", "election", "rally", "spotted"
 ]
 
 INFORMAL_WORDS = [
     "grabe", "besh", "lodi", "bakit", "hoy", "tol", "omg", "hehe", "huhu", 
     "lmao", "lol", "di ako sure", "haha", "diba", "ayoko", "char", "sana all", 
-    "angas", "kulit", "kaloka", "amp", "sus", "hala", "awit"
+    "angas", "kulit", "kaloka", "sus", "hala", "awit", "sana all"
 ]
 
 MALICIOUS_WORDS = [
     "scam", "hacked", "fake", "hoax", "mislead", "fraud", 
     "beware", "clickbait", "phishing", "leak", "stolen", 
-    "deceptive", "false", "break-up", "april fools", "ISCP",
+    "deceptive", "false", "break-up", "april fools", "iscp",
     "hahaha"
 ]
 
-def set_deterministic_seed(seed=42):
-    os.environ['PYTHONHASHSEED'] = str(seed)
-    np.random.seed(seed)
-    random.seed(seed)
-    tf.random.set_seed(seed)
+INSTITUTION_LINKS = {
+    "ched": "https://ched.gov.ph",
+    "deped": "https://www.deped.gov.ph",
+    "naga college foundation": "https://www.facebook.com/ncfph",
+    "unc": "https://www.facebook.com/UNCPhOfficial",
+    "usi": "https://www.facebook.com/usi.naga",
+    "up": "https://www.up.edu.ph",
+    "ateneo": "https://www.adnu.edu.ph",
+    "bicol university": "https://www.bicol-u.edu.ph",
+    "pup": "https://www.pup.edu.ph",
+    "ust": "https://www.ust.edu.ph",
+    "dlsu": "https://www.dlsu.edu.ph",
+    "ue": "https://www.ue.edu.ph",
+    "feu": "https://www.feu.edu.ph"
+}
 
-def load_models():
-    global cnn_model, text_model, vectorizer
-    if os.path.exists(CNN_MODEL_PATH):
-        cnn_model = tf.keras.models.load_model(CNN_MODEL_PATH)
-        print("✅ CNN model loaded.")
-    else:
-        print("❌ CNN model not found.")
-
-    if os.path.exists(TEXT_MODEL_PATH) and os.path.exists(VECTORIZER_PATH):
-        text_model = joblib.load(TEXT_MODEL_PATH)
-        vectorizer = joblib.load(VECTORIZER_PATH)
-        print("✅ Logistic Regression model and vectorizer loaded.")
-    else:
-        print("❌ Text model or vectorizer not found.")
-
-load_models()
-
-def clean_ocr_text(text):
+def clean_text(text):
     text = text.encode('ascii', errors='ignore').decode()
-    text = re.sub(r'[^a-zA-Z0-9\s.,!?\-]', ' ', text)
-    text = re.sub(r'\s+', ' ', text).strip()
-    return text
-
-def is_education_related(text):
-    text = text.lower()
-    for keyword in EDU_KEYWORDS:
-        if keyword in text:
-            return True, keyword
-        elif fuzz.partial_ratio(keyword, text) > 85:
-            return True, f"fuzzy match: {keyword}"
-    return False, None
-
-def preprocess_image_for_ocr(image_bytes):
-    image = Image.open(BytesIO(image_bytes)).convert("RGB")
-    img_cv = np.array(image)
-    gray = cv2.cvtColor(img_cv, cv2.COLOR_RGB2GRAY)
-    denoised = cv2.bilateralFilter(gray, 9, 75, 75)
-    return denoised, img_cv
-
-def prepare_for_cnn(image_bytes):
-    image = Image.open(BytesIO(image_bytes)).convert("RGB").resize((128, 128))
-    return np.expand_dims(np.array(image) / 255.0, axis=0)
-
-def predict_text_fake_news(text):
-    if not text_model or not vectorizer:
-        return None
-    text_vector = vectorizer.transform([text])
-    prediction = text_model.predict_proba(text_vector)[0][1]
-    return prediction
+    return re.sub(r'\s+', ' ', re.sub(r'[^a-zA-Z0-9\s.,!?\-]', ' ', text)).strip()
 
 def extract_analytics(text):
     lowered = text.lower()
-    suspicious_count = sum(1 for word in SUSPICIOUS_WORDS if word in lowered)
-    informal_count = sum(1 for word in INFORMAL_WORDS if word in lowered)
-    malicious_count = sum(1 for word in MALICIOUS_WORDS if word in lowered)
+    detected_suspicious = [word for word in SUSPICIOUS_WORDS if word in lowered]
+    detected_informal = [word for word in INFORMAL_WORDS if word in lowered]
+    detected_malicious = [word for word in MALICIOUS_WORDS if word in lowered]
     return {
-        "suspicious_words": suspicious_count,
-        "informal_words": informal_count,
-        "malicious_words": malicious_count,
-        "inconsistency_score": abs(suspicious_count - informal_count)
+        "suspicious_words": len(detected_suspicious),
+        "informal_words": len(detected_informal),
+        "malicious_words": len(detected_malicious),
+        "inconsistency_score": abs(len(detected_suspicious) - len(detected_informal)),
+        "detected_suspicious_words": detected_suspicious,
+        "detected_informal_words": detected_informal,
+        "detected_malicious_words": detected_malicious
     }
 
-@app.route('/predict/image', methods=['POST'])
+def get_suggestions(text):
+    suggestions = []
+    text = text.lower()
+    for keyword, url in INSTITUTION_LINKS.items():
+        if keyword in text:
+            suggestions.append({"institution": keyword.title(), "link": url})
+    return suggestions
+
+def is_education_related(text):
+    lowered = text.lower()
+    matches = []
+
+    # Check for direct keyword presence
+    for keyword in EDU_KEYWORDS:
+        if keyword in lowered:
+            return True
+
+    # Fuzzy check: split text and compare chunks
+    words = lowered.split()
+    for keyword in EDU_KEYWORDS:
+        for word in words:
+            if difflib.SequenceMatcher(None, keyword, word).ratio() >= 0.7:
+                matches.append(keyword)
+    return len(matches) > 0
+
+
+def predict_text(text):
+    if not text_model or not vectorizer:
+        return 0.5
+    vec = vectorizer.transform([text])
+    return text_model.predict_proba(vec)[0][1]
+
+def prepare_image(image_bytes):
+    image = Image.open(BytesIO(image_bytes)).convert("RGB").resize((128, 128))
+    return np.expand_dims(np.array(image) / 255.0, axis=0)
+
+@app.route("/predict/image", methods=["POST"])
 def predict_image():
     if 'image' not in request.files:
-        return jsonify({'error': 'No image uploaded.'}), 400
+        return jsonify({"error": "No image uploaded."}), 400
 
-    set_deterministic_seed()
     image_bytes = request.files['image'].read()
-    gray_img, original_img = preprocess_image_for_ocr(image_bytes)
+    image = Image.open(BytesIO(image_bytes)).convert("RGB")
+    gray = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2GRAY)
+    denoised = cv2.bilateralFilter(gray, 9, 75, 75)
 
-    ocr_data = pytesseract.image_to_data(
-        gray_img,
-        output_type=pytesseract.Output.DICT,
-        config="--psm 3"
-    )
-
-    extracted_text = ""
-    text_boxes = []
+    ocr_data = pytesseract.image_to_data(denoised, output_type=pytesseract.Output.DICT)
+    text_boxes, extracted_text = [], ""
     for i in range(len(ocr_data["text"])):
         word = ocr_data["text"][i].strip()
         if word:
-            x, y, w, h = ocr_data["left"][i], ocr_data["top"][i], ocr_data["width"][i], ocr_data["height"][i]
             extracted_text += word + "\n"
             text_boxes.append({
                 "text": word,
-                "x": x,
-                "y": y,
-                "width": w,
-                "height": h,
+                "x": ocr_data["left"][i],
+                "y": ocr_data["top"][i],
+                "width": ocr_data["width"][i],
+                "height": ocr_data["height"][i],
                 "conf": ocr_data["conf"][i]
             })
 
-    cleaned_text = clean_ocr_text(extracted_text)
-    is_related, keyword = is_education_related(cleaned_text)
+    cleaned = clean_text(extracted_text)
 
-    if not is_related:
+    # Scope limitation with fuzzy match
+    if not is_education_related(cleaned):
         return jsonify({
-            "error": "The uploaded image appears to be out of scope and not related to the Philippine education system.",
-            "detected_keyword": keyword,
-            "extractedText": cleaned_text or "No text detected.",
+            "error": "❌ Out of Scope: The uploaded news does not appear related to the Philippine education system.",
+            "extractedText": cleaned or "No text detected.",
             "textBoxes": text_boxes
         }), 400
 
-    analytics = extract_analytics(cleaned_text)
-    adjustment_count = analytics['suspicious_words'] + analytics['informal_words'] + analytics['malicious_words']
+    analytics = extract_analytics(cleaned)
+    suggestions = get_suggestions(cleaned)
 
-    text_fake = predict_text_fake_news(cleaned_text) or 0.5
+    # Predictions
+    text_fake = predict_text(cleaned)
     text_real = 1 - text_fake
 
     cnn_real, cnn_fake = 0.5, 0.5
     if cnn_model:
-        prediction = cnn_model.predict(prepare_for_cnn(image_bytes))[0][0]
+        prediction = cnn_model.predict(prepare_image(image_bytes))[0][0]
         cnn_fake = prediction
-        cnn_real = 1 - cnn_fake
+        cnn_real = 1 - prediction
 
-    if max(cnn_real, cnn_fake) < 0.6:
-        combined_real = text_real * 100
-        combined_fake = text_fake * 100
-    elif max(text_real, text_fake) < 0.6:
-        combined_real = cnn_real * 100
-        combined_fake = cnn_fake * 100
+    combined_real = ((text_real + cnn_real) / 2) * 100
+    combined_fake = ((text_fake + cnn_fake) / 2) * 100
+
+    # Adjust for word flags
+    total_flags = analytics["suspicious_words"] + analytics["informal_words"] + analytics["malicious_words"]
+    if total_flags >= 2:
+        combined_real -= 40
+        combined_fake += 40
+    elif total_flags == 1:
+        combined_real -= 30
+        combined_fake += 30
+
+    # Adjust for source credibility
+    if suggestions:
+        combined_real += 20
     else:
-        combined_real = ((cnn_real + text_real) / 2) * 100
-        combined_fake = ((cnn_fake + text_fake) / 2) * 100
+        combined_real -= 10
+        combined_fake += 10
 
-    # Apply 1% penalty per suspicious/informal/malicious word
-    penalty = adjustment_count * 1.0
-    combined_real = max(0, combined_real - penalty)
-    combined_fake = min(100, combined_fake + penalty)
+    # Clamp
+    combined_real = max(0, min(100, combined_real))
+    combined_fake = max(0, min(100, combined_fake))
 
     final_prediction = "Fake" if combined_fake > combined_real else "Real"
-    explanation = []
-    if analytics["suspicious_words"]:
-        explanation.append(f"Contains {analytics['suspicious_words']} suspicious word(s).")
-    if analytics["informal_words"]:
-        explanation.append(f"Contains {analytics['informal_words']} informal word(s).")
-    if analytics["malicious_words"]:
-        explanation.append(f"Contains {analytics['malicious_words']} malicious word(s).")
-    if analytics["inconsistency_score"] > 1:
-        explanation.append("Content shows inconsistency between suspicious and informal tone.")
-    if not explanation:
-        explanation.append("No strong indicators found — result based on model.")
+    verdict_comment = "❌ It's more likely fake!" if final_prediction == "Fake" else "✅ It seems to be real."
 
     return jsonify({
-        "extractedText": cleaned_text or "No text detected.",
+        "extractedText": cleaned or "No text detected.",
         "textBoxes": text_boxes,
         "real": round(combined_real, 2),
         "fake": round(combined_fake, 2),
         "final_prediction": final_prediction,
         "prediction_confidence": round(max(combined_real, combined_fake), 2),
         "analytics": analytics,
-        "adjustment_reason": f"-{penalty:.0f}% authenticity due to suspicious/informal/malicious content." if penalty > 0 else None,
-        "no_engagement_warning": None,
-        "explanation": explanation
+        "adjustment_reason": f"Adjusted based on {total_flags} flagged word(s) and credible link presence.",
+        "suggested_links": suggestions,
+        "verdict": verdict_comment
     })
 
-@app.route('/')
+@app.route("/")
 def home():
     return jsonify({"message": "CatchEd API is live"})
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)

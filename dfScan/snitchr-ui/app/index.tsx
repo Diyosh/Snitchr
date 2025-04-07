@@ -134,7 +134,7 @@ export default function HomeScreen() {
       backgroundColor: darkMode ? '#222' : '#f8f8f8',
       alignItems: 'center',
       justifyContent: 'center',
-      marginTop: 30,
+      marginTop: 110,
       marginBottom: 20,
       borderRadius: 16,
       borderWidth: 1,
