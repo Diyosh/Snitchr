@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router/tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../assets/zustand/store';
-import { Pressable, View } from 'react-native';
+import { Pressable } from 'react-native';
 import React from 'react';
 
 export default function Layout() {
@@ -57,6 +57,15 @@ export default function Layout() {
                 flex: 1,
               })}
             />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="Analytics"
+        options={{
+          tabBarLabel: 'Analytics',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="search" size={size} color={color} />
           ),
         }}
       />

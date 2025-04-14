@@ -1,33 +1,73 @@
-from flask import Flask, request, jsonify # type: ignore
-from flask_cors import CORS # type: ignore
+from flask import Flask, request, jsonify  # type: ignore
+from flask_cors import CORS  # type: ignore
+from flask_sqlalchemy import SQLAlchemy  # type: ignore
 import os
-import numpy as np # type: ignore
-import pytesseract # type: ignore
-import cv2 # type: ignore
-import tensorflow as tf # type: ignore
-from PIL import Image # type: ignore
+import numpy as np  # type: ignore
+import pytesseract  # type: ignore
+import cv2  # type: ignore
+import tensorflow as tf  # type: ignore
+from PIL import Image  # type: ignore
 from io import BytesIO
 import re
-import joblib # type: ignore
+import joblib  # type: ignore
 import random
 import difflib
+from datetime import datetime, date
 
 os.environ['TF_DETERMINISTIC_OPS'] = '1'
 
 app = Flask(__name__)
 CORS(app)
 
+# Neon PostgreSQL connection string
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://neondb_owner:npg_QSfIx6nTp9KO@ep-long-night-a584cdfz-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
+
+# Define the detection log model
+class DetectionLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    final_prediction = db.Column(db.String(10))
+    real_score = db.Column(db.Float)
+    fake_score = db.Column(db.Float)
+
+# Create tables on startup
+with app.app_context():
+    try:
+        db.create_all()
+        print("✅ Database tables ensured.")
+    except Exception as e:
+        print("❌ Error creating DB tables:", e)
+
 pytesseract.pytesseract.tesseract_cmd = r'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
 
-# Load paths
 CNN_MODEL_PATH = "cnn_model/CatchEd_CNN_Balanced.keras"
 TEXT_MODEL_PATH = "dataset_text/CatchEd_LogReg_Model.pkl"
 VECTORIZER_PATH = "dataset_text/CatchEd_Tfidf_Vectorizer.pkl"
 
-# Load models safely
-cnn_model = tf.keras.models.load_model(CNN_MODEL_PATH) if os.path.exists(CNN_MODEL_PATH) else None
-text_model = joblib.load(TEXT_MODEL_PATH) if os.path.exists(TEXT_MODEL_PATH) else None
-vectorizer = joblib.load(VECTORIZER_PATH) if os.path.exists(VECTORIZER_PATH) else None
+# Debug loading models
+if os.path.exists(CNN_MODEL_PATH):
+    cnn_model = tf.keras.models.load_model(CNN_MODEL_PATH)
+    print("✅ CNN model loaded.")
+else:
+    cnn_model = None
+    print("❌ CNN model not found:", CNN_MODEL_PATH)
+
+if os.path.exists(TEXT_MODEL_PATH):
+    text_model = joblib.load(TEXT_MODEL_PATH)
+    print("✅ Logistic Regression model loaded.")
+else:
+    text_model = None
+    print("❌ Logistic Regression model not found:", TEXT_MODEL_PATH)
+
+if os.path.exists(VECTORIZER_PATH):
+    vectorizer = joblib.load(VECTORIZER_PATH)
+    print("✅ TF-IDF vectorizer loaded.")
+else:
+    vectorizer = None
+    print("❌ TF-IDF vectorizer not found:", VECTORIZER_PATH)
 
 # Keywords and institution links
 EDU_KEYWORDS = [
@@ -37,38 +77,37 @@ EDU_KEYWORDS = [
 ]
 
 SUSPICIOUS_WORDS = [
-    "breaking", "update", "trending", "urgent", "announcement", 
-    "confirmed", "free", "official", "legit", "viral", "share", 
-    "campaign", "election", "rally", "spotted"
+    "breaking", "update", "trending", "urgent","free", 
+    "official", "legit", "viral","campaign", "election", 
+    "rally", "spotted",
 ]
 
 INFORMAL_WORDS = [
-    "grabe", "besh", "lodi", "bakit", "hoy", "tol", "omg", "hehe", "huhu", 
-    "lmao", "lol", "di ako sure", "haha", "diba", "ayoko", "char", "sana all", 
-    "angas", "kulit", "kaloka", "sus", "hala", "awit", "sana all"
+    "grabe", "besh", "lodi", "bakit", "hoy", "tol", "omg", "hehe", "huhu",
+    "lmao", "lol", "di ako sure", "haha", "diba", "ayoko", "char", "sana all",
+    "angas", "kulit", "kaloka","hala", "awit", "sana all"
 ]
 
 MALICIOUS_WORDS = [
-    "scam", "hacked", "fake", "hoax", "mislead", "fraud", 
-    "beware", "clickbait", "phishing", "leak", "stolen", 
-    "deceptive", "false", "break-up", "april fools", "iscp",
-    "hahaha"
+    "scam", "hacked", "fake", "hoax", "mislead", "fraud",
+    "beware", "clickbait", "phishing", "leak", "stolen",
+    "deceptive", "false", "break-up", "april fools", "iscp", "hahaha"
 ]
 
 INSTITUTION_LINKS = {
-    "ched": "https://ched.gov.ph",
-    "deped": "https://www.deped.gov.ph",
+    "ched": "https://www.facebook.com/CHEDphilippines",
+    "deped": "https://www.facebook.com/DepEd.Philippines",
     "naga college foundation": "https://www.facebook.com/ncfph",
     "unc": "https://www.facebook.com/UNCPhOfficial",
     "usi": "https://www.facebook.com/usi.naga",
-    "up": "https://www.up.edu.ph",
-    "ateneo": "https://www.adnu.edu.ph",
-    "bicol university": "https://www.bicol-u.edu.ph",
-    "pup": "https://www.pup.edu.ph",
-    "ust": "https://www.ust.edu.ph",
-    "dlsu": "https://www.dlsu.edu.ph",
-    "ue": "https://www.ue.edu.ph",
-    "feu": "https://www.feu.edu.ph"
+    "up": "https://www.facebook.com/UPSystemOfficial",
+    "ateneo": "https://www.facebook.com/ateneodemanila",
+    "bicol university": "https://www.facebook.com/BicolUniversityPH",
+    "pup": "https://www.facebook.com/ThePUPOfficial",
+    "ust": "https://www.facebook.com/UST1611official",
+    "dlsu": "https://www.facebook.com/DLSU.Manila.Official",
+    "ue": "https://www.facebook.com/UniversityoftheEastUE",
+    "feu": "https://www.facebook.com/theFEU"
 }
 
 def clean_text(text):
@@ -77,44 +116,26 @@ def clean_text(text):
 
 def extract_analytics(text):
     lowered = text.lower()
-    detected_suspicious = [word for word in SUSPICIOUS_WORDS if word in lowered]
-    detected_informal = [word for word in INFORMAL_WORDS if word in lowered]
-    detected_malicious = [word for word in MALICIOUS_WORDS if word in lowered]
     return {
-        "suspicious_words": len(detected_suspicious),
-        "informal_words": len(detected_informal),
-        "malicious_words": len(detected_malicious),
-        "inconsistency_score": abs(len(detected_suspicious) - len(detected_informal)),
-        "detected_suspicious_words": detected_suspicious,
-        "detected_informal_words": detected_informal,
-        "detected_malicious_words": detected_malicious
+        "suspicious_words": sum(1 for word in SUSPICIOUS_WORDS if word in lowered),
+        "informal_words": sum(1 for word in INFORMAL_WORDS if word in lowered),
+        "malicious_words": sum(1 for word in MALICIOUS_WORDS if word in lowered),
+        "inconsistency_score": abs(sum(1 for word in SUSPICIOUS_WORDS if word in lowered) - sum(1 for word in INFORMAL_WORDS if word in lowered)),
+        "detected_suspicious_words": [word for word in SUSPICIOUS_WORDS if word in lowered],
+        "detected_informal_words": [word for word in INFORMAL_WORDS if word in lowered],
+        "detected_malicious_words": [word for word in MALICIOUS_WORDS if word in lowered]
     }
 
 def get_suggestions(text):
-    suggestions = []
     text = text.lower()
-    for keyword, url in INSTITUTION_LINKS.items():
-        if keyword in text:
-            suggestions.append({"institution": keyword.title(), "link": url})
-    return suggestions
+    return [{"institution": k.title(), "link": v} for k, v in INSTITUTION_LINKS.items() if k in text]
 
 def is_education_related(text):
     lowered = text.lower()
-    matches = []
-
-    # Check for direct keyword presence
-    for keyword in EDU_KEYWORDS:
-        if keyword in lowered:
-            return True
-
-    # Fuzzy check: split text and compare chunks
+    if any(keyword in lowered for keyword in EDU_KEYWORDS):
+        return True
     words = lowered.split()
-    for keyword in EDU_KEYWORDS:
-        for word in words:
-            if difflib.SequenceMatcher(None, keyword, word).ratio() >= 0.7:
-                matches.append(keyword)
-    return len(matches) > 0
-
+    return any(difflib.SequenceMatcher(None, keyword, word).ratio() >= 0.7 for keyword in EDU_KEYWORDS for word in words)
 
 def predict_text(text):
     if not text_model or not vectorizer:
@@ -152,8 +173,6 @@ def predict_image():
             })
 
     cleaned = clean_text(extracted_text)
-
-    # Scope limitation with fuzzy match
     if not is_education_related(cleaned):
         return jsonify({
             "error": "❌ Out of Scope: The uploaded news does not appear related to the Philippine education system.",
@@ -164,7 +183,6 @@ def predict_image():
     analytics = extract_analytics(cleaned)
     suggestions = get_suggestions(cleaned)
 
-    # Predictions
     text_fake = predict_text(cleaned)
     text_real = 1 - text_fake
 
@@ -177,7 +195,6 @@ def predict_image():
     combined_real = ((text_real + cnn_real) / 2) * 100
     combined_fake = ((text_fake + cnn_fake) / 2) * 100
 
-    # Adjust for word flags
     total_flags = analytics["suspicious_words"] + analytics["informal_words"] + analytics["malicious_words"]
     if total_flags >= 2:
         combined_real -= 40
@@ -186,19 +203,20 @@ def predict_image():
         combined_real -= 30
         combined_fake += 30
 
-    # Adjust for source credibility
     if suggestions:
         combined_real += 20
     else:
         combined_real -= 10
         combined_fake += 10
 
-    # Clamp
     combined_real = max(0, min(100, combined_real))
     combined_fake = max(0, min(100, combined_fake))
 
     final_prediction = "Fake" if combined_fake > combined_real else "Real"
     verdict_comment = "❌ It's more likely fake!" if final_prediction == "Fake" else "✅ It seems to be real."
+
+    db.session.add(DetectionLog(final_prediction=final_prediction, real_score=combined_real, fake_score=combined_fake))
+    db.session.commit()
 
     return jsonify({
         "extractedText": cleaned or "No text detected.",
@@ -213,9 +231,24 @@ def predict_image():
         "verdict": verdict_comment
     })
 
+@app.route("/analytics/today", methods=["GET"])
+def analytics_today():
+    logs = DetectionLog.query.filter(
+        db.func.date(DetectionLog.timestamp) == date.today()
+    ).all()
+    real_count = sum(1 for log in logs if log.final_prediction.lower() == 'real')
+    fake_count = sum(1 for log in logs if log.final_prediction.lower() == 'fake')
+    return jsonify({
+        "date": date.today().isoformat(),
+        "total": real_count + fake_count,
+        "real": real_count,
+        "fake": fake_count
+    })
+
 @app.route("/")
 def home():
     return jsonify({"message": "CatchEd API is live"})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True, use_reloader=False)
+

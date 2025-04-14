@@ -10,19 +10,21 @@ import { useAppStore } from '../assets/zustand/store';
 const screenWidth = Dimensions.get('window').width;
 
 const credibleLinks: { [key: string]: string } = {
-  'ched': 'https://ched.gov.ph/',
-  'deped': 'https://www.deped.gov.ph/',
+  'ched': 'https://www.facebook.com/CHEDphilippines',
+  'deped': 'https://www.facebook.com/DepEd.Philippines',
   'naga college foundation': 'https://www.facebook.com/ncfph',
-  'unc': 'https://www.unc.edu.ph/',
-  'usi': 'https://www.facebook.com/USI.Naga.Official',
-  'up': 'https://up.edu.ph/',
-  'ateneo': 'https://www.ateneo.edu/',
-  'ust': 'https://www.ust.edu.ph/',
-  'pup': 'https://www.pup.edu.ph/',
-  'dlsu': 'https://www.dlsu.edu.ph/',
-  'ue': 'https://www.ue.edu.ph/',
-  'feu': 'https://www.feu.edu.ph/',
+  'unc': 'https://www.facebook.com/UNCPhOfficial',
+  'usi': 'https://www.facebook.com/usi.naga',
+  'up': 'https://www.facebook.com/UPSystemOfficial',
+  'ateneo': 'https://www.facebook.com/ateneodemanila',
+  'bicol university': 'https://www.facebook.com/BicolUniversityPH',
+  'pup': 'https://www.facebook.com/ThePUPOfficial',
+  'ust': 'https://www.facebook.com/UST1611official',
+  'dlsu': 'https://www.facebook.com/DLSU.Manila.Official',
+  'ue': 'https://www.facebook.com/UniversityoftheEastUE',
+  'feu': 'https://www.facebook.com/theFEU',
 };
+
 
 export default function ResultsScreen() {
   const router = useRouter();
