@@ -9,9 +9,17 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.CatchEd.snitchr",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "We use your gallery to upload images."
+      }
     },
     "android": {
+      "permissions": [
+        "READ_EXTERNAL_STORAGE"
+      ],
+      "package": "com.CatchEd.snitchr",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/splash-fullscreen.png",
         "backgroundColor": "#ffffff"
@@ -22,19 +30,24 @@
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
-
     "splash": {
       "image": "./assets/images/splash-fullscreen.png",
       "resizeMode": "cover",
       "backgroundColor": "#e9eaea"
     },
-
     "plugins": [
       "expo-router"
     ],
-
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "432eb5f5-2cad-4624-9de7-d52ff7b07edb"
+      }
     }
   }
 }
