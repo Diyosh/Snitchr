@@ -1,15 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, Image, TouchableOpacity, StyleSheet, Alert, Modal, Dimensions
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import axios from 'axios';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { useCallback } from 'react';
 import { useAppStore } from '../assets/zustand/store';
 import { Ionicons } from '@expo/vector-icons';
 import LottieView from 'lottie-react-native';
+import Colors from '../assets/constants/Colors';
 
 const screenWidth = Dimensions.get('window').width;
 const imageBoxWidth = screenWidth * 0.9;
@@ -19,16 +19,22 @@ export default function HomeScreen() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
-
+  const { darkMode, toggleDarkMode, setHasDetectionResult, resetStore } = useAppStore();
   const router = useRouter();
-  const { setHasDetectionResult } = useAppStore();
+  const params = useLocalSearchParams();
 
   useFocusEffect(
     useCallback(() => {
       setSelectedImage(null);
     }, [router])
   );
+
+  useEffect(() => {
+    if (params?.clear) {
+      setSelectedImage(null);
+      resetStore();
+    }
+  }, [params?.clear]);
 
   const requestMediaPermission = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -71,7 +77,7 @@ export default function HomeScreen() {
     } as any);
 
     try {
-      const response = await axios.post('http://192.168.11.184:5000/predict/image', formData, {
+      const response = await axios.post('http://192.168.0.7:5000/predict/image', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         validateStatus: () => true
       });
@@ -84,7 +90,7 @@ export default function HomeScreen() {
 
       const {
         real, fake, extractedText, message, analytics,
-        adjustment_reason, no_engagement_warning, textBoxes, final_prediction
+        adjustment_reason, no_engagement_warning, textBoxes, final_prediction, suggested_links
       } = response.data;
 
       setHasDetectionResult(true);
@@ -100,7 +106,8 @@ export default function HomeScreen() {
           no_engagement_warning: no_engagement_warning || '',
           textBoxes: JSON.stringify(textBoxes),
           imageUri: selectedImage,
-          final_prediction: final_prediction || ''
+          final_prediction: final_prediction || '',
+          suggested_links: JSON.stringify(suggested_links || [])
         },
       });
     } catch (error) {
@@ -111,81 +118,12 @@ export default function HomeScreen() {
     }
   };
 
-  const styles = StyleSheet.create({
-    container: { flex: 1, paddingTop: 32, alignItems: 'center', backgroundColor: darkMode ? '#000' : '#fff' },
-    topBar: {
-      width: '100%',
-      paddingHorizontal: 16,
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-    },
-    navbarText: {
-      fontSize: 22,
-      fontWeight: 'bold',
-      color: darkMode ? '#fff' : '#213555'
-    },
-    themeToggle: {
-      padding: 8,
-      borderRadius: 12,
-      backgroundColor: darkMode ? '#444' : '#eee',
-    },
-    imagePlaceholder: {
-      backgroundColor: darkMode ? '#222' : '#f8f8f8',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginTop: 110,
-      marginBottom: 20,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: '#ddd',
-      width: imageBoxWidth,
-      height: imageBoxHeight
-    },
-    image: { width: '100%', height: '100%', borderRadius: 12 },
-    closeButton: {
-      position: 'absolute', top: 8, right: 8,
-      backgroundColor: 'red', width: 30, height: 30, borderRadius: 15,
-      alignItems: 'center', justifyContent: 'center'
-    },
-    closeButtonText: { color: 'white', fontWeight: 'bold' },
-    plusText: { fontSize: 48, fontWeight: 'bold', color: darkMode ? '#777' : '#555' },
-    sectionTitle: { fontWeight: 'bold', marginBottom: 10, fontSize: 16, color: darkMode ? '#fff' : '#213555' },
-    centeredRow: { flexDirection: 'row', justifyContent: 'center' },
-    methodButton: {
-      paddingVertical: 12,
-      paddingHorizontal: 24, 
-      borderWidth: 1,
-      borderColor: '#000',
-      borderRadius: 8,
-      backgroundColor: darkMode ? '#444' : '#eee',
-      minWidth: 120, 
-      alignItems: 'center',
-    },    
-    disabledButton: { opacity: 0.5 },
-    modalBackground: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: 'rgba(0,0,0,0.5)',
-    },
-    modalContainer: {
-      padding: 25,
-      backgroundColor: darkMode ? '#333' : 'white',
-      borderRadius: 12,
-      alignItems: 'center',
-    },
-    modalTitle: { fontSize: 17, fontWeight: 'bold', marginBottom: 10, color: darkMode ? '#fff' : '#000' },
-    modalButton: { padding: 12, marginBottom: 8, backgroundColor: '#f0f0f0', borderRadius: 8 },
-    closeText: { color: 'red', fontWeight: 'bold' },
-  });
-
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: darkMode ? Colors.darkBackground : Colors.background }]}>
       <View style={styles.topBar}>
         <Text style={styles.navbarText}>Home</Text>
-        <TouchableOpacity onPress={() => setDarkMode(!darkMode)} style={styles.themeToggle}>
-          <Ionicons name={darkMode ? 'sunny' : 'moon'} size={24} color={darkMode ? '#fff' : '#213555'} />
+        <TouchableOpacity onPress={toggleDarkMode} style={styles.themeToggle}>
+          <Ionicons name={darkMode ? 'sunny' : 'moon'} size={24} color={darkMode ? '#fff' : Colors.primary} />
         </TouchableOpacity>
       </View>
 
@@ -213,11 +151,11 @@ export default function HomeScreen() {
 
       <View style={styles.centeredRow}>
         <TouchableOpacity
-          style={[styles.methodButton, !selectedImage && styles.disabledButton]}
+          style={[styles.detectButton, !selectedImage && styles.disabledButton]}
           onPress={detectImage}
           disabled={!selectedImage}
         >
-          <Text style={{ color: darkMode ? '#fff' : '#000', fontWeight: '600' }}>Analyze</Text>
+          <Text style={styles.detectButtonText}>Analyze</Text>
         </TouchableOpacity>
       </View>
 
@@ -237,3 +175,115 @@ export default function HomeScreen() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    paddingTop: 32,
+    alignItems: 'center',
+  },
+  topBar: {
+    width: '100%',
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  navbarText: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: Colors.primary,
+  },
+  themeToggle: {
+    padding: 8,
+    borderRadius: 12,
+    backgroundColor: Colors.lightGray,
+  },
+  imagePlaceholder: {
+    backgroundColor: Colors.lightBackground,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 100,
+    marginBottom: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.lightGray,
+    width: imageBoxWidth,
+    height: imageBoxHeight,
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: Colors.danger,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  plusText: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    color: Colors.primary,
+  },
+  centeredRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  detectButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: Colors.buttonYellow,
+    borderRadius: 30,
+    minWidth: 120,
+    alignItems: 'center',
+  },
+  detectButtonText: {
+    color: Colors.primary,
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
+  modalBackground: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalContainer: {
+    padding: 25,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: Colors.primary,
+  },
+  modalButton: {
+    padding: 12,
+    marginBottom: 8,
+    backgroundColor: Colors.lightGray,
+    borderRadius: 8,
+    width: 200,
+    alignItems: 'center',
+  },
+  closeText: {
+    color: Colors.danger,
+    fontWeight: 'bold',
+  },
+});

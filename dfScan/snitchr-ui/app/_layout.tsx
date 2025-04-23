@@ -1,8 +1,10 @@
+// _layout.tsx
 import { Tabs } from 'expo-router/tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../assets/zustand/store';
 import { Pressable } from 'react-native';
 import React from 'react';
+import  Colors  from '../assets/constants/Colors';
 
 export default function Layout() {
   const { hasDetectionResult } = useAppStore();
@@ -11,11 +13,11 @@ export default function Layout() {
     <Tabs
       screenOptions={{
         tabBarStyle: {
-          backgroundColor: '#fff',
+          backgroundColor: Colors.background,
           borderTopWidth: 1,
           borderTopColor: '#ccc',
         },
-        tabBarActiveTintColor: '#213555',
+        tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: '#999',
       }}
     >
@@ -45,7 +47,7 @@ export default function Layout() {
               {...props}
               onPress={(e) => {
                 if (!hasDetectionResult) {
-                  e.preventDefault(); // prevent navigation if no results
+                  e.preventDefault();
                 } else {
                   props.onPress?.(e);
                 }
@@ -60,12 +62,13 @@ export default function Layout() {
           ),
         }}
       />
+
       <Tabs.Screen
         name="Analytics"
         options={{
           tabBarLabel: 'Analytics',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="search" size={size} color={color} />
+            <Ionicons name="stats-chart-outline" size={size} color={color} />
           ),
         }}
       />

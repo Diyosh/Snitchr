@@ -1,0 +1,150 @@
+/* src/LandingPage.css */
+.landing-container {
+    font-family: 'Poppins', sans-serif;
+    color: #003366;
+    background-color: #f9f9f9;
+    line-height: 1.6;
+  }
+  
+  .navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 30px;
+    background: #ffffff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  
+  .logo-container {
+    display: flex;
+    align-items: center;
+  }
+  
+  .logo {
+    width: 40px;
+    height: 40px;
+    margin-right: 10px;
+  }
+  
+  .app-name {
+    font-weight: bold;
+    font-size: 1.2rem;
+    color: #003366;
+  }
+  
+  .nav-links {
+    list-style: none;
+    display: flex;
+    gap: 20px;
+  }
+  
+  .nav-links li {
+    display: inline;
+  }
+  
+  .nav-links a {
+    text-decoration: none;
+    color: #003366;
+    font-weight: bold;
+    font-size: 1rem;
+    transition: color 0.3s;
+  }
+  
+  .nav-links a:hover {
+    color: #0055aa;
+  }
+  
+  .hero {
+    text-align: center;
+    padding: 100px 20px 60px;
+    background: linear-gradient(to right, #003366, #0055aa);
+    color: #fff;
+  }
+  
+  .hero h1 {
+    font-size: 3rem;
+    margin-bottom: 20px;
+  }
+  
+  .hero p {
+    font-size: 1.2rem;
+    margin-bottom: 30px;
+  }
+  
+  .hero-buttons button {
+    background: #ffd700;
+    border: none;
+    padding: 12px 24px;
+    margin: 0 10px;
+    border-radius: 30px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  
+  .hero-buttons .secondary {
+    background: transparent;
+    border: 2px solid #ffd700;
+    color: #ffd700;
+  }
+  
+  section {
+    padding: 60px 20px;
+    text-align: center;
+  }
+  
+  .solution-cards {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+  }
+  
+  .card {
+    background: white;
+    padding: 20px;
+    width: 280px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    border-radius: 12px;
+  }
+  
+  .steps {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 30px;
+  }
+  
+  .step {
+    background: #003366;
+    color: white;
+    padding: 15px 25px;
+    border-radius: 50px;
+    font-size: 1rem;
+  }
+  
+  .features ul {
+    list-style: none;
+    padding: 0;
+  }
+  
+  .features li {
+    margin-bottom: 15px;
+    font-weight: bold;
+  }
+  
+  .about p, .download p {
+    font-size: 1rem;
+    margin-top: 20px;
+  }
+  
+  .footer {
+    background: #003366;
+    color: #fff;
+    padding: 20px 10px;
+    font-size: 0.9rem;
+  }
+  

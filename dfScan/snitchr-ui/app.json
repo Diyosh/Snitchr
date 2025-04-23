@@ -4,7 +4,7 @@
     "slug": "snitchr-ui",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/splash-fullscreen.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -13,7 +13,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/splash-fullscreen.png",
         "backgroundColor": "#ffffff"
       }
     },
@@ -22,18 +22,17 @@
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
+
+    "splash": {
+      "image": "./assets/images/splash-fullscreen.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#e9eaea"
+    },
+
     "plugins": [
-      "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
-        }
-      ]
+      "expo-router"
     ],
+
     "experiments": {
       "typedRoutes": true
     }
