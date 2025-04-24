@@ -40,7 +40,7 @@ with app.app_context():
 
 # Models
 pytesseract.pytesseract.tesseract_cmd = r'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
-CNN_MODEL_PATH = "cnn_model/CatchEd_CNN_Balanced.keras"
+CNN_MODEL_PATH = "cnn_model/CatchEd_CNN_Balanced.h5"
 TEXT_MODEL_PATH = "dataset_text/CatchEd_LogReg_Model.pkl"
 VECTORIZER_PATH = "dataset_text/CatchEd_Tfidf_Vectorizer.pkl"
 
