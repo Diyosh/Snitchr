@@ -65,7 +65,7 @@ soupsieve==2.6
 SQLAlchemy==2.0.40
 tensorboard==2.18.0
 tensorboard-data-server==0.7.2
-tensorflow_intel==2.18.0
+tensorflow==2.13.0
 termcolor==2.5.0
 threadpoolctl==3.5.0
 typing_extensions==4.12.2
