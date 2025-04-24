@@ -1,9 +1,13 @@
 #!/bin/bash
 
-# Set Tesseract path (Linux Render)
-export TESSDATA_PREFIX=/usr/share/tesseract-ocr/4.00/tessdata
-export PATH=$PATH:/usr/bin
-export TESSERACT_CMD=/usr/bin/tesseract
+# Install Tesseract during container startup (runtime)
+apt-get update && apt-get install -y tesseract-ocr
 
-# Run the server
+# Optional: print Tesseract version to confirm it's installed
+tesseract --version
+
+echo "✅ Checking Tesseract..."
+tesseract --version || echo "❌ Still not found"
+
+# Start Flask app with Gunicorn
 exec gunicorn Scanner:app --bind 0.0.0.0:$PORT
