@@ -25,6 +25,7 @@ export default function Layout() {
         name="index"
         options={{
           tabBarLabel: 'Home',
+
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home-outline" size={size} color={color} />
           ),
