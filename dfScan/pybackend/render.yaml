@@ -6,7 +6,4 @@ services:
       apt-get update && apt-get install -y tesseract-ocr
       pip install -r requirements.txt
     startCommand: gunicorn Scanner:app
-    envVars:
-      - key: FLASK_ENV
-        value: production
     plan: free
