@@ -41,8 +41,8 @@ with app.app_context():
 # Models
 pytesseract.pytesseract.tesseract_cmd = r'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
 CNN_MODEL_PATH = "cnn_model/CatchEd_CNN_Balanced. (1)h5"
-TEXT_MODEL_PATH = "dataset_text/CatchEd_LogReg_Model.pkl"
-VECTORIZER_PATH = "dataset_text/CatchEd_Tfidf_Vectorizer.pkl"
+TEXT_MODEL_PATH = "dataset_text/CatchEd_LogReg_Model. (1)pkl"
+VECTORIZER_PATH = "dataset_text/CatchEd_Tfidf_Vectorizer (2).pkl "
 
 cnn_model = tf.keras.models.load_model(CNN_MODEL_PATH) if os.path.exists(CNN_MODEL_PATH) else None
 text_model = joblib.load(TEXT_MODEL_PATH) if os.path.exists(TEXT_MODEL_PATH) else None
