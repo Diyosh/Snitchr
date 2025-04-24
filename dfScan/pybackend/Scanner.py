@@ -39,7 +39,6 @@ with app.app_context():
         print("❌ Error creating DB tables:", e)
 
 # Models
-# pytesseract.pytesseract.tesseract_cmd = r'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
 pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
 CNN_MODEL_PATH = "cnn_model/CatchEd_CNN_Balanced. (1)h5"    
 TEXT_MODEL_PATH = "dataset_text/CatchEd_LogReg_Model. (1)pkl"
