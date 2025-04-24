@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "snitchr-ui",
-    "slug": "snitchr-ui",
+    "name": "CatchEd: Stay Informed",
+    "slug": "CatchEd: Stay Informed",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/splash-fullscreen.png",
