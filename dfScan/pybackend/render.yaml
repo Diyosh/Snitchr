@@ -3,9 +3,7 @@ services:
     name: catched-backend
     env: python
     plan: free
-    buildCommand: |
-      apt-get update && apt-get install -y tesseract-ocr
-      pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt
     startCommand: gunicorn Scanner:app --bind 0.0.0.0:$PORT
     envVars:
       - key: FLASK_ENV
