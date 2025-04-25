@@ -182,8 +182,11 @@ def predict_image():
         ocr_config = '--oem 3 --psm 6'
 
         # Debug preview of OCR text
-        raw_ocr = pytesseract.image_to_string(image, config=ocr_config)
-        print("🧠 OCR Preview:\n", raw_ocr)
+        # raw_ocr = pytesseract.image_to_string(image, config=ocr_config)
+        # print("🧠 OCR Preview:\n", raw_ocr)
+        # Preprocess with smaller DPI and fallback to grayscale image only
+        ocr_safe_image = Image.fromarray(preprocessed).convert("L").resize((600, 600))
+        raw_ocr = pytesseract.image_to_string(ocr_safe_image, config="--psm 3")
 
         # Extract text boxes with layout data
         ocr_data = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT, config=ocr_config)
