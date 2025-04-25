@@ -14,17 +14,20 @@ import json
 from datetime import datetime, date
 import cv2 # type: ignore
 import subprocess
-
-# 🔍 Check if tesseract is installed
-try:
-    version = subprocess.check_output(["tesseract", "--version"])
-    print("✅ Tesseract is installed:\n", version.decode())
-except Exception as e:
-    print("❌ Tesseract check failed:", e)
-
-# 🔧 Set the path explicitly
+import shutil
 import pytesseract # type: ignore
-pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
+
+print("📦 ENV PATH:", os.environ.get("PATH"))
+print("📦 Files in /usr/bin (partial):", os.listdir("/usr/bin")[:20])
+
+# Try auto-locating tesseract
+tesseract_path = shutil.which("tesseract")
+if tesseract_path:
+    print("✅ Tesseract located at:", tesseract_path)
+    pytesseract.pytesseract.tesseract_cmd = tesseract_path
+else:
+    print("❌ Tesseract not found in PATH")
+    pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"  # fallback
 
 # Setup
 os.environ['TF_DETERMINISTIC_OPS'] = '1'
