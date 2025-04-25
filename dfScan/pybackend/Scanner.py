@@ -200,7 +200,7 @@ def predict_image():
                         "conf": ocr_data["conf"][i]
                     })
 
-            # Strip trailing space and optionally append punctuation
+        # Strip trailing space and optionally append punctuation
         extracted_text = extracted_text.strip()
         if not extracted_text.endswith("."):
                 extracted_text += "."
