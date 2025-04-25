@@ -13,6 +13,18 @@ import difflib
 import json
 from datetime import datetime, date
 import cv2 # type: ignore
+import subprocess
+
+# 🔍 Check if tesseract is installed
+try:
+    version = subprocess.check_output(["tesseract", "--version"])
+    print("✅ Tesseract is installed:\n", version.decode())
+except Exception as e:
+    print("❌ Tesseract check failed:", e)
+
+# 🔧 Set the path explicitly
+import pytesseract # type: ignore
+pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
 
 # Setup
 os.environ['TF_DETERMINISTIC_OPS'] = '1'
