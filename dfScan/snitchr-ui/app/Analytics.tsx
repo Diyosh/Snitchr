@@ -23,7 +23,7 @@ export default function AnalyticsScreen() {
 
   const loadAnalytics = () => {
     setLoading(true);
-    fetch('https://catched.onrender.com/analytics/today')
+    fetch('https://catched-backend.onrender.com/analytics/today')
       .then(async res => {
         const contentType = res.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {

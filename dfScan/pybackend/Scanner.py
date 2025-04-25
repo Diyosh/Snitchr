@@ -176,11 +176,11 @@ def predict_image():
         ocr_config = '--oem 3 --psm 3 -c tessedit_create_hocr=1 --dpi 300'
 
         # Debug preview of OCR text
-        raw_ocr = pytesseract.image_to_string(preprocessed, config=ocr_config)
+        raw_ocr = pytesseract.image_to_string(image, config=ocr_config)
         print("🧠 OCR Preview:\n", raw_ocr)
 
         # Extract text boxes with layout data
-        ocr_data = pytesseract.image_to_data(preprocessed, output_type=pytesseract.Output.DICT, config=ocr_config)
+        ocr_data = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT, config=ocr_config)
 
         text_boxes, extracted_text = [], ""
         for i in range(len(ocr_data["text"])):
