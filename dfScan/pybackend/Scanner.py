@@ -34,7 +34,8 @@ os.environ['TF_DETERMINISTIC_OPS'] = '1'
 app = Flask(__name__)
 CORS(app)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://neondb_owner:npg_QSfIx6nTp9KO@ep-long-night-a584cdfz-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require'
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://neondb_owner:npg_QSfIx6nTp9KO@ep-long-night-a584cdfz-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URL")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_pre_ping': True}
 db = SQLAlchemy(app)

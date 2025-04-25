@@ -3,3 +3,4 @@ services:
     name: catched-backend
     env: docker
     plan: free
+    dockerfilePath: ./Dockerfile
