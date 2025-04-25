@@ -27,7 +27,7 @@ if tesseract_path:
     pytesseract.pytesseract.tesseract_cmd = tesseract_path
 else:
     print("❌ Tesseract not found in PATH")
-    pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"  # fallback
+    pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract" 
 
 # Setup
 os.environ['TF_DETERMINISTIC_OPS'] = '1'
