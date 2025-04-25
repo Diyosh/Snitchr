@@ -16,7 +16,9 @@ import cv2 # type: ignore
 import subprocess
 import shutil
 import pytesseract # type: ignore
+import psutil # type: ignore
 
+print("🧠 RAM usage after image load:", psutil.Process(os.getpid()).memory_info().rss / 1024 / 1024, "MB")
 print("📦 ENV PATH:", os.environ.get("PATH"))
 print("📦 Files in /usr/bin (partial):", os.listdir("/usr/bin")[:20])
 
@@ -131,7 +133,9 @@ def predict_text(text):
     return text_model.predict_proba(vec)[0][1]
 
 def prepare_image(image_bytes):
-    image = Image.open(BytesIO(image_bytes)).convert("RGB").resize((128, 128))
+    # image = Image.open(BytesIO(image_bytes)).convert("RGB").resize((128, 128))
+    image = Image.open(BytesIO(image_bytes)).convert("RGB")
+    image.thumbnail((800, 800))  # Resize early to reduce memory before any processing
     arr = np.array(image).astype(np.float32)
     arr = (arr - np.mean(arr)) / (np.std(arr) or 1e-6)
     return np.expand_dims(arr, axis=0)
