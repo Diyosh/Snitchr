@@ -25,6 +25,5 @@ RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 
 # Run app
-CMD ["gunicorn", "Scanner:app", "--bind", "0.0.0.0:5000", "-w", "1"]
-
+CMD ["gunicorn", "Scanner:app", "--bind", "0.0.0.0:5000", "--workers=1"]
 

@@ -171,13 +171,15 @@ def predict_image():
         np_image = np.array(image)
 
         # TEMP: Use raw RGB image (bypass preprocessing)
-        preprocessed = np_image
+        # preprocessed = np_image
+        preprocessed = preprocess_image_for_ocr(np_image)
 
         # Save preprocessed image for debugging
-        cv2.imwrite("ocr_debug_input.png", cv2.cvtColor(preprocessed, cv2.COLOR_RGB2BGR))
+        # cv2.imwrite("ocr_debug_input.png", cv2.cvtColor(preprocessed, cv2.COLOR_RGB2BGR))
 
         # Use better OCR config
-        ocr_config = '--oem 3 --psm 3 -c tessedit_create_hocr=1 --dpi 300'
+        # ocr_config = '--oem 3 --psm 3 -c tessedit_create_hocr=1 --dpi 300'
+        ocr_config = '--oem 3 --psm 6'
 
         # Debug preview of OCR text
         raw_ocr = pytesseract.image_to_string(image, config=ocr_config)
