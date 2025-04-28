@@ -16,28 +16,27 @@ import cv2 # type: ignore
 import subprocess
 import shutil
 import pytesseract # type: ignore
-import psutil # type: ignore
+import random
 
-print("🧠 RAM usage after image load:", psutil.Process(os.getpid()).memory_info().rss / 1024 / 1024, "MB")
-print("📦 ENV PATH:", os.environ.get("PATH"))
-print("📦 Files in /usr/bin (partial):", os.listdir("/usr/bin")[:20])
+# print("📦 ENV PATH:", os.environ.get("PATH"))
+# print("📦 Files in /usr/bin (partial):", os.listdir("/usr/bin")[:20])
 
 # Try auto-locating tesseract
-tesseract_path = shutil.which("tesseract")
-if tesseract_path:
-    print("✅ Tesseract located at:", tesseract_path)
-    pytesseract.pytesseract.tesseract_cmd = tesseract_path
-else:
-    print("❌ Tesseract not found in PATH")
-    pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract" 
+# tesseract_path = shutil.which("tesseract")
+# if tesseract_path:
+#     print("✅ Tesseract located at:", tesseract_path)
+#     pytesseract.pytesseract.tesseract_cmd = tesseract_path
+# else:
+#     print("❌ Tesseract not found in PATH")
+#     pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract" 
 
 # Setup
 os.environ['TF_DETERMINISTIC_OPS'] = '1'
 app = Flask(__name__)
 CORS(app)
 
-# app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://neondb_owner:npg_QSfIx6nTp9KO@ep-long-night-a584cdfz-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require'
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URL")
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://neondb_owner:npg_QSfIx6nTp9KO@ep-long-night-a584cdfz-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require'
+# app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URL")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_pre_ping': True}
 db = SQLAlchemy(app)
@@ -57,8 +56,8 @@ with app.app_context():
         print("❌ Error creating DB tables:", e)
 
 # Models
-# pytesseract.pytesseract.tesseract_cmd = r'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
-pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
+pytesseract.pytesseract.tesseract_cmd = r'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
+# pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
 CNN_MODEL_PATH = "cnn_model/CatchEd_CNN_Balanced. (1)h5"    
 TEXT_MODEL_PATH = "dataset_text/CatchEd_LogReg_Model. (1)pkl"
 VECTORIZER_PATH = "dataset_text/CatchEd_Tfidf_Vectorizer (2).pkl "
@@ -71,7 +70,10 @@ vectorizer = joblib.load(VECTORIZER_PATH) if os.path.exists(VECTORIZER_PATH) els
 SUSPICIOUS_WORDS = ["breaking", "update", "trending", "urgent", "free", "official", "legit", "viral", "campaign", "rally", "spotted"]
 INFORMAL_WORDS = ["grabe", "besh", "lodi", "bakit", "hoy", "tol", "omg", "hehe", "huhu", "lmao", "lol", "di ako sure", "hahaha", "diba", "ayoko", "char", "sana all", "angas", "kulit", "kaloka", "hala ka", "awit"]
 MALICIOUS_WORDS = ["scam", "hacked", "fake", "hoax", "mislead", "fraud", "beware", "clickbait", "phishing", "leak", "stolen", "deceptive", "false", "break-up", "april fools", "iscp", "hahaha"]
-EDU_KEYWORDS = ["ched", "deped", "education", "school", "students", "academic", "university", "tuition", "exam", "modules", "k-12", "DepEd Philippines", "CHED Philippines", "walang pasok", "board exam", "college", "class suspension"]
+EDU_KEYWORDS = ["ched", "deped", "education", "school", "students",
+                 "academic",  "university", "tuition", "exam", "modules", 
+                 "k-12", "DepEd Philippines", "CHED Philippines", "walang pasok",
+                 "board exam", "college", "class suspension","classes"]
 
 INSTITUTION_LINKS = {
     "ched": "https://www.facebook.com/CHEDphilippines",
@@ -133,9 +135,7 @@ def predict_text(text):
     return text_model.predict_proba(vec)[0][1]
 
 def prepare_image(image_bytes):
-    # image = Image.open(BytesIO(image_bytes)).convert("RGB").resize((128, 128))
-    image = Image.open(BytesIO(image_bytes)).convert("RGB")
-    image.thumbnail((800, 800))  # Resize early to reduce memory before any processing
+    image = Image.open(BytesIO(image_bytes)).convert("RGB").resize((128, 128))
     arr = np.array(image).astype(np.float32)
     arr = (arr - np.mean(arr)) / (np.std(arr) or 1e-6)
     return np.expand_dims(arr, axis=0)
@@ -171,25 +171,20 @@ def predict_image():
         np_image = np.array(image)
 
         # TEMP: Use raw RGB image (bypass preprocessing)
-        # preprocessed = np_image
-        preprocessed = preprocess_image_for_ocr(np_image)
+        preprocessed = np_image
 
         # Save preprocessed image for debugging
-        # cv2.imwrite("ocr_debug_input.png", cv2.cvtColor(preprocessed, cv2.COLOR_RGB2BGR))
+        cv2.imwrite("ocr_debug_input.png", cv2.cvtColor(preprocessed, cv2.COLOR_RGB2BGR))
 
         # Use better OCR config
-        # ocr_config = '--oem 3 --psm 3 -c tessedit_create_hocr=1 --dpi 300'
-        ocr_config = '--oem 3 --psm 6'
+        ocr_config = '--oem 3 --psm 3 -c tessedit_create_hocr=1 --dpi 300'
 
         # Debug preview of OCR text
-        # raw_ocr = pytesseract.image_to_string(image, config=ocr_config)
-        # print("🧠 OCR Preview:\n", raw_ocr)
-        # Preprocess with smaller DPI and fallback to grayscale image only
-        ocr_safe_image = Image.fromarray(preprocessed).convert("L").resize((600, 600))
-        raw_ocr = pytesseract.image_to_string(ocr_safe_image, config="--psm 3")
+        raw_ocr = pytesseract.image_to_string(preprocessed, config=ocr_config)
+        print("🧠 OCR Preview:\n", raw_ocr)
 
         # Extract text boxes with layout data
-        ocr_data = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT, config=ocr_config)
+        ocr_data = pytesseract.image_to_data(preprocessed, output_type=pytesseract.Output.DICT, config=ocr_config)
 
         text_boxes, extracted_text = [], ""
         for i in range(len(ocr_data["text"])):
@@ -254,8 +249,19 @@ def predict_image():
             combined_real /= total
             combined_fake /= total
 
-        combined_real = round(max(0, min(1, combined_real)) * 100, 2)
-        combined_fake = round(max(0, min(1, combined_fake)) * 100, 2)
+        # Scale to percentage
+        combined_real *= 100
+        combined_fake *= 100
+
+        # Add random noise
+        noise = random.uniform(-0.5, 0.5)
+        combined_real += noise
+        combined_fake = 100 - combined_real
+
+        # Final clamp and rounding
+        combined_real = round(max(0, min(100, combined_real)), 2)
+        combined_fake = round(max(0, min(100, combined_fake)), 2)
+
 
         final_prediction = "Fake" if combined_fake > combined_real else "Real"
         db.session.add(DetectionLog(final_prediction=final_prediction, real_score=combined_real, fake_score=combined_fake))

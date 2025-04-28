@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Alert
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../assets/zustand/store';
-import Colors from '../assets/constants/Colors';
+import { getColors } from '../assets/constants/Colors';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -11,6 +11,7 @@ export default function ResultsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { resetStore, darkMode, toggleDarkMode } = useAppStore();
+  const Colors = getColors(darkMode);
 
   const [real, setReal] = useState(0);
   const [fake, setFake] = useState(0);
@@ -36,27 +37,27 @@ export default function ResultsScreen() {
     if (!params?.real || !params?.fake || !params?.analytics || !params?.extractedText || !params?.final_prediction) {
       return;
     }
-  
+
     const realParsed = parseFloat(params.real as string);
     const fakeParsed = parseFloat(params.fake as string);
     const extracted = params.extractedText as string;
     const adjustment = params.adjustment_reason as string || '';
     const prediction = params.final_prediction as string;
     const analyticsStr = params.analytics as string;
-  
+
     setReal(isNaN(realParsed) ? 0 : realParsed);
     setFake(isNaN(fakeParsed) ? 0 : fakeParsed);
     setExtractedText(extracted);
     setAdjustmentReason(adjustment);
     setVerdict(prediction);
-  
+
     try {
       const parsedAnalytics = JSON.parse(analyticsStr);
       setAnalytics(parsedAnalytics);
     } catch (error) {
       console.error('Analytics JSON parse error:', error);
     }
-  
+
     if (prediction.toLowerCase() === 'real') {
       setRealBoxColor(Colors.successGreen);
       setFakeBoxColor(Colors.boxNeutral);
@@ -64,7 +65,7 @@ export default function ResultsScreen() {
       setRealBoxColor(Colors.boxNeutral);
       setFakeBoxColor(Colors.danger);
     }
-  
+
     if (params?.suggested_links) {
       try {
         const links = JSON.parse(params.suggested_links as string);
@@ -75,7 +76,7 @@ export default function ResultsScreen() {
         console.error("Suggested links parse error:", e);
       }
     }
-  }, [params.real, params.fake, params.analytics, params.extractedText, params.final_prediction, params.suggested_links]);  
+  }, [params.real, params.fake, params.analytics, params.extractedText, params.final_prediction, params.suggested_links]);
 
   const handleScanAnother = () => {
     Alert.alert('Scan Another', 'Clear current results?', [
@@ -135,11 +136,11 @@ export default function ResultsScreen() {
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
         <View style={[styles.statBox, { backgroundColor: realBoxColor }]}>
           <Text style={styles.statLabel}>Real</Text>
-          <Text style={styles.statValue}>{real}%</Text>
+          <Text style={styles.statValue}>{real.toFixed(2)}%</Text>
         </View>
         <View style={[styles.statBox, { backgroundColor: fakeBoxColor }]}>
           <Text style={styles.statLabel}>Fake</Text>
-          <Text style={styles.statValue}>{fake}%</Text>
+          <Text style={styles.statValue}>{fake.toFixed(2)}%</Text>
         </View>
       </View>
 

@@ -1,29 +1,23 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  Dimensions,
-  ActivityIndicator,
-  TouchableOpacity
-} from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Dimensions, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
 import { useAppStore } from '../assets/zustand/store';
-import Colors from '../assets/constants/Colors';
+import { getColors } from '../assets/constants/Colors';
 
 const screenWidth = Dimensions.get('window').width;
 
 export default function AnalyticsScreen() {
   const { darkMode } = useAppStore();
+  const Colors = getColors(darkMode);
+
   const [analytics, setAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const loadAnalytics = () => {
     setLoading(true);
-    fetch('https://catched-backend.onrender.com/analytics/today')
+    fetch('http://192.168.0.7:5000/analytics/today')
       .then(async res => {
         const contentType = res.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
@@ -68,8 +62,8 @@ export default function AnalyticsScreen() {
     caption: string
   ) => (
     <>
-      <Text style={[styles.chartTitle]}>{title}</Text>
-      <Text style={[styles.label]}>{summaryLabel}</Text>
+      <Text style={styles.chartTitle}>{title}</Text>
+      <Text style={styles.label}>{summaryLabel}</Text>
 
       <LineChart
         data={{
@@ -110,9 +104,52 @@ export default function AnalyticsScreen() {
         style={{ marginBottom: 12 }}
       />
 
-      <Text style={[styles.caption]}>{caption}</Text>
+      <Text style={styles.caption}>{caption}</Text>
     </>
   );
+
+  const styles = StyleSheet.create({
+    container: {
+      padding: 16,
+      paddingBottom: 100,
+      backgroundColor: Colors.background,
+    },
+    topBar: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    title: {
+      fontSize: 22,
+      fontWeight: 'bold',
+      color: Colors.primary,
+    },
+    chartTitle: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      marginTop: 16,
+      marginBottom: 8,
+      color: Colors.primary,
+    },
+    label: {
+      fontSize: 16,
+      marginBottom: 4,
+      color: Colors.primary,
+    },
+    caption: {
+      fontSize: 14,
+      fontStyle: 'italic',
+      marginBottom: 24,
+      paddingHorizontal: 4,
+      color: Colors.primary,
+    },
+    error: {
+      fontSize: 16,
+      marginTop: 10,
+      color: Colors.danger,
+    },
+  });
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -164,46 +201,3 @@ export default function AnalyticsScreen() {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    padding: 16,
-    paddingBottom: 100,
-    backgroundColor: Colors.background,
-  },
-  topBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: Colors.primary,
-  },
-  chartTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 16,
-    marginBottom: 8,
-    color: Colors.primary,
-  },
-  label: {
-    fontSize: 16,
-    marginBottom: 4,
-    color: Colors.primary,
-  },
-  caption: {
-    fontSize: 14,
-    fontStyle: 'italic',
-    marginBottom: 24,
-    paddingHorizontal: 4,
-    color: Colors.primary,
-  },
-  error: {
-    fontSize: 16,
-    marginTop: 10,
-    color: Colors.danger,
-  },
-});

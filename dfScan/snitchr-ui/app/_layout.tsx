@@ -1,31 +1,33 @@
-// _layout.tsx
 import { Tabs } from 'expo-router/tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../assets/zustand/store';
 import { Pressable } from 'react-native';
 import React from 'react';
-import  Colors  from '../assets/constants/Colors';
+import { getColors } from '../assets/constants/Colors';
 
 export default function Layout() {
-  const { hasDetectionResult } = useAppStore();
+  const { hasDetectionResult, darkMode } = useAppStore();
+  const Colors = getColors(darkMode);
 
   return (
     <Tabs
       screenOptions={{
         tabBarStyle: {
-          backgroundColor: Colors.background,
+          backgroundColor: Colors.linkBlue, // Blue background
           borderTopWidth: 1,
-          borderTopColor: '#ccc',
+          borderTopColor: Colors.lightGray,
         },
-        tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: '#999',
+        tabBarActiveTintColor: '#ffffff', // White active icon
+        tabBarInactiveTintColor: '#cccccc', // Light gray inactive icon
       }}
     >
+      {/* 👇 Hide index route */}
+      <Tabs.Screen name="index" options={{ href: null }} />
+
       <Tabs.Screen
-        name="index"
+        name="Home"
         options={{
           tabBarLabel: 'Home',
-
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home-outline" size={size} color={color} />
           ),
