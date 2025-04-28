@@ -1,15 +1,23 @@
 import React from 'react';
 import './LandingPage.css';
 import logo from './logo.png';
+import qr from './qr.png'; // <-- You forgot to import the QR image
 
 export default function LandingPage() {
+  // Smooth scroll to download
+  const scrollToDownload = () => {
+    const downloadSection = document.getElementById('download');
+    if (downloadSection) {
+      downloadSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <div className="landing-container">
       {/* Navbar */}
       <nav className="navbar">
         <div className="logo-container">
           <img src={logo} alt="CatchEd Logo" className="logo" />
-          <span className="app-name">CatchEd</span>
         </div>
         <ul className="nav-links">
           <li><a href="#problem">Problem</a></li>
@@ -22,10 +30,10 @@ export default function LandingPage() {
       {/* Hero Section */}
       <section className="hero">
         <h1>CatchEd</h1>
-        <p>Detecting Misinformation in Philippine Education Posts </p>
+        <p>Detecting Misinformation in Philippine Education Posts</p>
         <div className="hero-buttons">
-          <button>Learn More</button>
-          <button className="secondary">Try CatchEd</button>
+          <button onClick={scrollToDownload}>Learn More</button>
+          <button className="secondary" onClick={scrollToDownload}>Try CatchEd</button>
         </div>
       </section>
 
@@ -89,9 +97,22 @@ export default function LandingPage() {
       </section>
 
       {/* Download Section */}
-      <section className="download">
-        <h2>Coming Soon!</h2>
-        <p>Stay tuned for the official launch of CatchEd mobile app.</p>
+      <section className="download" id="download">
+        <h2>Download CatchEd</h2>
+        <p>🤖 Open this link on your Android device (or scan the QR code) to install the app:</p>
+        <a
+          href="https://expo.dev/accounts/devjoshmndz/projects/snitchr-ui/builds/7716132a-aa75-49b9-9c5a-7ae7a0067a5e"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="download-link"
+        >
+          https://expo.dev/accounts/devjoshmndz/projects/snitchr-ui/builds/7716132a-aa75-49b9-9c5a-7ae7a0067a5e
+        </a>
+
+        {/* QR Code */}
+        <div className="qr-container">
+          <img src={qr} alt="QR Code" className="qr-code" />
+        </div>
       </section>
 
       {/* Footer */}

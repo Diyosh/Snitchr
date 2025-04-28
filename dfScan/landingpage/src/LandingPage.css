@@ -24,8 +24,8 @@
   }
   
   .logo {
-    width: 40px;
-    height: 40px;
+    width: 120px;
+    height: 50px;
     margin-right: 10px;
   }
   
@@ -146,5 +146,19 @@
     color: #fff;
     padding: 20px 10px;
     font-size: 0.9rem;
+  }
+  .qr-container {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .qr-code {
+    width: 200px; /* adjust size */
+    height: auto;
+    margin-top: 20px;
+    border: 4px solid #003366; /* optional border for nice look */
+    border-radius: 12px;
   }
   
