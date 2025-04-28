@@ -81,7 +81,6 @@ export default function HomeScreen() {
         headers: { 'Content-Type': 'multipart/form-data' },
         validateStatus: () => true
       });
-
       if (response.status === 400) {
         const { error } = response.data;
         Alert.alert("Out of Scope", error || "This image is not related to education.");
