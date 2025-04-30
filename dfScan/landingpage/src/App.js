@@ -99,7 +99,7 @@ export default function LandingPage() {
       {/* Download Section */}
       <section className="download" id="download">
         <h2>Download CatchEd</h2>
-        <p>🤖 Open this link on your Android device (or scan the QR code) to install the app:</p>
+        <p>🤖 Open this link on your device (or scan the QR code) to install the app:</p>
         <a
           href="https://expo.dev/accounts/devjoshmndz/projects/snitchr-ui/builds/7716132a-aa75-49b9-9c5a-7ae7a0067a5e"
           target="_blank"
