@@ -25,14 +25,13 @@ export default function Layout() {
       <Tabs.Screen
         name="index"
         options={{
-          href: '/Home', // Enables redirect to work
-          tabBarButton: () => null, // Hides it from tab bar
-  }}
-/>
+          tabBarButton: () => null // ✅ Hide from tab bar
+        }}
+      />
 
 
       <Tabs.Screen
-        name="Home"
+        name="home"
         options={{
           tabBarLabel: 'Home',
           tabBarIcon: ({ color, size }) => (
@@ -42,7 +41,7 @@ export default function Layout() {
       />
 
       <Tabs.Screen
-        name="Result"
+        name="result"
         options={{
           tabBarLabel: 'Results',
           tabBarIcon: ({ color, size }) => (
@@ -74,7 +73,7 @@ export default function Layout() {
       />
 
       <Tabs.Screen
-        name="Analytics"
+        name="analytics"
         options={{
           tabBarLabel: 'Analytics',
           tabBarIcon: ({ color, size }) => (
