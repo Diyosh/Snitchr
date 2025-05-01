@@ -78,7 +78,7 @@ export default function HomeScreen() {
     } as any);
 
     try {
-      const response = await axios.post('http://192.168.0.7:5000/predict/image', formData, {
+      const response = await axios.post('http://192.168.68.116:5000/predict/image', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         validateStatus: () => true
       });
@@ -122,14 +122,19 @@ export default function HomeScreen() {
   return (
     <View style={[styles.container, { backgroundColor: Colors.background }]}>
       <View style={styles.topBar}>
-      <Image
-        source={require('../assets/images/logo.png')}
-        style={{ width: 125, height: 70, resizeMode: 'contain' }}
-      />
+        <Image
+          source={require('../assets/images/logo.png')}
+          style={{ width: 125, height: 70, resizeMode: 'contain' }}
+        />
         <TouchableOpacity onPress={toggleDarkMode} style={[styles.themeToggle, { backgroundColor: Colors.lightGray }]}>
           <Ionicons name={darkMode ? 'sunny' : 'moon'} size={24} color={darkMode ? '#fff' : Colors.primary} />
         </TouchableOpacity>
       </View>
+
+      {/* Back Button
+      <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <Text style={styles.backButtonText}>← Go Back</Text>
+      </TouchableOpacity> */}
 
       <TouchableOpacity style={[styles.imagePlaceholder, { backgroundColor: Colors.lightBackground, borderColor: Colors.lightGray }]} onPress={() => setIsModalVisible(true)}>
         {selectedImage ? (
@@ -159,7 +164,17 @@ export default function HomeScreen() {
           onPress={detectImage}
           disabled={!selectedImage}
         >
-          <Text style={[styles.detectButtonText, { color: Colors.primary }]}>Analyze</Text>
+          <Text style={[styles.detectButtonText, { color: Colors.primary }]}>🔍 Analyze</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Navigation Buttons at Bottom */}
+      <View style={styles.navButtonsBottom}>
+        <TouchableOpacity style={styles.navBtn} onPress={() => router.push('/result')}>
+          <Text style={styles.navBtnText}>📊 Result</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.navBtn} onPress={() => router.push('/analytics')}>
+          <Text style={styles.navBtnText}>📈 Analytics</Text>
         </TouchableOpacity>
       </View>
 
@@ -193,10 +208,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  navbarText: {
-    fontSize: 22,
-    fontWeight: 'bold',
-  },
   themeToggle: {
     padding: 8,
     borderRadius: 12,
@@ -212,8 +223,8 @@ const styles = StyleSheet.create({
     height: imageBoxHeight,
   },
   image: {
-    width: '100%',
-    height: '100%',
+    width: '90%',
+    height: '90%',
     borderRadius: 12,
   },
   closeButton: {
@@ -251,6 +262,31 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.5,
+  },
+  navButtonsBottom: {
+    marginTop: 32,
+    width: '59%',
+    gap: 15,
+  },
+  navBtn: {
+    backgroundColor: '#3D90D7',
+    paddingVertical: 15,
+    borderRadius: 20,
+    alignItems: 'center',
+  },
+  navBtnText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  backButton: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    marginLeft: 16,
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: '#3478f6',
+    fontWeight: '600',
   },
   modalBackground: {
     flex: 1,
