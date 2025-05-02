@@ -154,7 +154,7 @@ export default function HomeScreen() {
           source={require('../assets/animation/scannimation.json')}
           autoPlay
           loop
-          style={{ width: 180, height: 180 }}
+          style={{ width: 300, height: 300, marginLeft: 50}}
         />
       )}
 

@@ -172,7 +172,7 @@ export default function AnalyticsScreen() {
 
           {renderLineChart(
             "📅 Today's Detection Trend (Hourly)",
-            ['8AM', '10AM', '12PM', '2PM', '4PM', '6PM'],
+            ['1hr', '3hr', '6hr', '12hr', '18hr', '24hr'],
             simulateTrend(analytics.real, 6),
             simulateTrend(analytics.fake, 6),
             `Real: ${analytics.real} | Fake: ${analytics.fake}`,
