@@ -78,7 +78,7 @@ export default function HomeScreen() {
     } as any);
 
     try {
-      const response = await axios.post('http://192.168.68.116:5000/predict/image', formData, {
+      const response = await axios.post('http://192.168.0.7:5000/predict/image', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         validateStatus: () => true
       });
@@ -96,7 +96,7 @@ export default function HomeScreen() {
 
       setHasDetectionResult(true);
       router.push({
-        pathname: '/result',
+        pathname: '/Result',
         params: {
           real: real?.toFixed(2) || '0.00',
           fake: fake?.toFixed(2) || '0.00',
@@ -168,12 +168,11 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Navigation Buttons at Bottom */}
       <View style={styles.navButtonsBottom}>
-        <TouchableOpacity style={styles.navBtn} onPress={() => router.push('/result')}>
+        <TouchableOpacity style={styles.navBtn} onPress={() => router.push('/Result')}>
           <Text style={styles.navBtnText}>📊 Result</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navBtn} onPress={() => router.push('/analytics')}>
+        <TouchableOpacity style={styles.navBtn} onPress={() => router.push('/Analytics')}>
           <Text style={styles.navBtnText}>📈 Analytics</Text>
         </TouchableOpacity>
       </View>
@@ -223,16 +222,16 @@ const styles = StyleSheet.create({
     height: imageBoxHeight,
   },
   image: {
-    width: '90%',
-    height: '90%',
+    width: '99%',
+    height: '99%',
     borderRadius: 12,
   },
   closeButton: {
     position: 'absolute',
     top: 8,
     right: 8,
-    width: 30,
-    height: 30,
+    width: 21,
+    height: 20,
     borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
