@@ -222,8 +222,8 @@ const styles = StyleSheet.create({
     height: imageBoxHeight,
   },
   image: {
-    width: '99%',
-    height: '99%',
+    width: '100%',
+    height: '100%',
     borderRadius: 12,
   },
   closeButton: {

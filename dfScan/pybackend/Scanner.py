@@ -73,7 +73,7 @@ MALICIOUS_WORDS = ["scam", "hacked", "fake", "hoax", "mislead", "fraud", "beware
 EDU_KEYWORDS = ["ched", "deped", "education", "school", "students",
                  "academic",  "university", "tuition", "exam", "modules", 
                  "k-12", "DepEd Philippines", "CHED Philippines", "walang pasok",
-                 "board exam", "college", "class suspension","classes"]
+                 "board exam", "college", "class suspension","classes", "department of education"]
 
 INSTITUTION_LINKS = {
     "ched": "https://www.facebook.com/CHEDphilippines",
@@ -155,7 +155,7 @@ def preprocess_image_for_ocr(image):
     # Reduce noise
     blurred = cv2.GaussianBlur(enhanced, (3, 3), 0)
 
-    # Threshold using Otsu’s method
+    # Threshold
     thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
 
     return thresh

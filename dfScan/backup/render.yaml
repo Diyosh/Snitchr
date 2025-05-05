@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: catched-backend
+    env: docker
+    plan: free
+    dockerfilePath: ./Dockerfile

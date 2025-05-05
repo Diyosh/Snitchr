@@ -1,0 +1,305 @@
+from flask import Flask, request, Response # type: ignore
+from flask_cors import CORS # type: ignore
+from flask_sqlalchemy import SQLAlchemy # type: ignore
+import os
+import numpy as np # type: ignore
+import pytesseract # type: ignore
+import tensorflow as tf # type: ignore
+from PIL import Image # type: ignore
+from io import BytesIO
+import re
+import joblib # type: ignore
+import difflib
+import json
+from datetime import datetime, date
+import cv2 # type: ignore
+import subprocess
+import shutil
+import pytesseract # type: ignore
+import psutil # type: ignore
+
+print("🧠 RAM usage after image load:", psutil.Process(os.getpid()).memory_info().rss / 1024 / 1024, "MB")
+print("📦 ENV PATH:", os.environ.get("PATH"))
+print("📦 Files in /usr/bin (partial):", os.listdir("/usr/bin")[:20])
+
+# Try auto-locating tesseract
+tesseract_path = shutil.which("tesseract")
+if tesseract_path:
+    print("✅ Tesseract located at:", tesseract_path)
+    pytesseract.pytesseract.tesseract_cmd = tesseract_path
+else:
+    print("❌ Tesseract not found in PATH")
+    pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract" 
+
+# Setup
+os.environ['TF_DETERMINISTIC_OPS'] = '1'
+app = Flask(__name__)
+CORS(app)
+
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://neondb_owner:npg_QSfIx6nTp9KO@ep-long-night-a584cdfz-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URL")
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_pre_ping': True}
+db = SQLAlchemy(app)
+
+class DetectionLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    final_prediction = db.Column(db.String(10))
+    real_score = db.Column(db.Float)
+    fake_score = db.Column(db.Float)
+
+with app.app_context():
+    try:
+        db.create_all()
+        print("✅ Database tables ensured.")
+    except Exception as e:
+        print("❌ Error creating DB tables:", e)
+
+# Models
+# pytesseract.pytesseract.tesseract_cmd = r'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
+pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
+CNN_MODEL_PATH = "cnn_model/CatchEd_CNN_Balanced. (1)h5"    
+TEXT_MODEL_PATH = "dataset_text/CatchEd_LogReg_Model. (1)pkl"
+VECTORIZER_PATH = "dataset_text/CatchEd_Tfidf_Vectorizer (2).pkl "
+
+cnn_model = tf.keras.models.load_model(CNN_MODEL_PATH) if os.path.exists(CNN_MODEL_PATH) else None
+text_model = joblib.load(TEXT_MODEL_PATH) if os.path.exists(TEXT_MODEL_PATH) else None
+vectorizer = joblib.load(VECTORIZER_PATH) if os.path.exists(VECTORIZER_PATH) else None
+
+# Constants
+SUSPICIOUS_WORDS = ["breaking", "update", "trending", "urgent", "free", "official", "legit", "viral", "campaign", "rally", "spotted"]
+INFORMAL_WORDS = ["grabe", "besh", "lodi", "bakit", "hoy", "tol", "omg", "hehe", "huhu", "lmao", "lol", "di ako sure", "hahaha", "diba", "ayoko", "char", "sana all", "angas", "kulit", "kaloka", "hala ka", "awit"]
+MALICIOUS_WORDS = ["scam", "hacked", "fake", "hoax", "mislead", "fraud", "beware", "clickbait", "phishing", "leak", "stolen", "deceptive", "false", "break-up", "april fools", "iscp", "hahaha"]
+EDU_KEYWORDS = ["ched", "deped", "education", "school", "students", "academic", "university", "tuition", "exam", "modules", "k-12", "DepEd Philippines", "CHED Philippines", "walang pasok", "board exam", "college", "class suspension"]
+
+INSTITUTION_LINKS = {
+    "ched": "https://www.facebook.com/CHEDphilippines",
+    "deped": "https://www.facebook.com/DepEd.Philippines",
+    "naga college foundation": "https://www.facebook.com/ncfph",
+    "unc": "https://www.facebook.com/UNCPhOfficial",
+    "usi": "https://www.facebook.com/usi.naga",
+    "up": "https://www.facebook.com/UPSystemOfficial",
+    "ateneo": "https://www.facebook.com/ateneodemanila",
+    "bicol university": "https://www.facebook.com/BicolUniversityPH",
+    "pup": "https://www.facebook.com/ThePUPOfficial",
+    "ust": "https://www.facebook.com/UST1611official",
+    "dlsu": "https://www.facebook.com/DLSU.Manila.Official",
+    "ue": "https://www.facebook.com/UniversityoftheEastUE",
+    "feu": "https://www.facebook.com/theFEU",
+    "abs-cbn": "https://www.facebook.com/abscbnNEWS",
+    "gma": "https://www.facebook.com/gmanews",
+    "cnn philippines": "https://www.facebook.com/CNNPhilippines",
+    "philippine star": "https://www.facebook.com/PhilippineSTAR",
+    "inquirer": "https://www.facebook.com/inquirerdotnet",
+    "manila bulletin": "https://www.facebook.com/manilabulletin",
+    "rappler": "https://www.facebook.com/rapplerdotcom",
+    "one news": "https://www.facebook.com/onenewsph",
+    "news5": "https://www.facebook.com/news5everywhere",
+    "ptv": "https://www.facebook.com/PTVph"
+}
+
+# Helper Functions
+def clean_text(text):
+    text = text.encode('ascii', errors='ignore').decode()
+    return re.sub(r'[^a-zA-Z0-9\s.,!?\-]', ' ', text).strip()
+
+def extract_analytics(text):
+    lowered = text.lower()
+    return {
+        "suspicious_words": sum(1 for word in SUSPICIOUS_WORDS if word in lowered),
+        "informal_words": sum(1 for word in INFORMAL_WORDS if word in lowered),
+        "malicious_words": sum(1 for word in MALICIOUS_WORDS if word in lowered),
+        "inconsistency_score": abs(sum(1 for word in SUSPICIOUS_WORDS if word in lowered) - sum(1 for word in INFORMAL_WORDS if word in lowered)),
+        "detected_suspicious_words": [word for word in SUSPICIOUS_WORDS if word in lowered],
+        "detected_informal_words": [word for word in INFORMAL_WORDS if word in lowered],
+        "detected_malicious_words": [word for word in MALICIOUS_WORDS if word in lowered]
+    }
+
+def get_suggestions(text):
+    lowered = text.lower()
+    return [{"institution": k.title(), "link": v} for k, v in INSTITUTION_LINKS.items() if re.search(r'\b' + re.escape(k) + r'\b', lowered)]
+
+def is_education_related(text):
+    lowered = text.lower()
+    if any(keyword in lowered for keyword in EDU_KEYWORDS):
+        return True
+    return any(difflib.SequenceMatcher(None, keyword, word).ratio() >= 0.7 for keyword in EDU_KEYWORDS for word in lowered.split())
+
+def predict_text(text):
+    if not text_model or not vectorizer:
+        return 0.5
+    vec = vectorizer.transform([text])
+    return text_model.predict_proba(vec)[0][1]
+
+def prepare_image(image_bytes):
+    # image = Image.open(BytesIO(image_bytes)).convert("RGB").resize((128, 128))
+    image = Image.open(BytesIO(image_bytes)).convert("RGB")
+    image.thumbnail((800, 800))  # Resize early to reduce memory before any processing
+    arr = np.array(image).astype(np.float32)
+    arr = (arr - np.mean(arr)) / (np.std(arr) or 1e-6)
+    return np.expand_dims(arr, axis=0)
+
+def preprocess_image_for_ocr(image):
+    gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+
+    # Resize if too small
+    h, w = gray.shape
+    if h < 600 or w < 600:
+        gray = cv2.resize(gray, (w * 2, h * 2), interpolation=cv2.INTER_LINEAR)
+
+    # Enhance contrast with CLAHE
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    enhanced = clahe.apply(gray)
+
+    # Reduce noise
+    blurred = cv2.GaussianBlur(enhanced, (3, 3), 0)
+
+    # Threshold using Otsu’s method
+    thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+
+    return thresh
+
+@app.route("/predict/image", methods=["POST"])
+def predict_image():
+    try:
+        if 'image' not in request.files:
+            return Response(json.dumps({"error": "No image uploaded."}), mimetype='application/json'), 400
+
+        image_bytes = request.files['image'].read()
+        image = Image.open(BytesIO(image_bytes)).convert("RGB")
+        np_image = np.array(image)
+
+        # TEMP: Use raw RGB image (bypass preprocessing)
+        # preprocessed = np_image
+        preprocessed = preprocess_image_for_ocr(np_image)
+
+        # Save preprocessed image for debugging
+        # cv2.imwrite("ocr_debug_input.png", cv2.cvtColor(preprocessed, cv2.COLOR_RGB2BGR))
+
+        # Use better OCR config
+        # ocr_config = '--oem 3 --psm 3 -c tessedit_create_hocr=1 --dpi 300'
+        ocr_config = '--oem 3 --psm 6'
+
+        # Debug preview of OCR text
+        # raw_ocr = pytesseract.image_to_string(image, config=ocr_config)
+        # print("🧠 OCR Preview:\n", raw_ocr)
+        # Preprocess with smaller DPI and fallback to grayscale image only
+        ocr_safe_image = Image.fromarray(preprocessed).convert("L").resize((600, 600))
+        raw_ocr = pytesseract.image_to_string(ocr_safe_image, config="--psm 3")
+
+        # Extract text boxes with layout data
+        ocr_data = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT, config=ocr_config)
+
+        text_boxes, extracted_text = [], ""
+        for i in range(len(ocr_data["text"])):
+                word = ocr_data["text"][i].strip()
+                if word:
+                    extracted_text += word + " "
+                    text_boxes.append({
+                        "text": word,
+                        "x": ocr_data["left"][i],
+                        "y": ocr_data["top"][i],
+                        "width": ocr_data["width"][i],
+                        "height": ocr_data["height"][i],
+                        "conf": ocr_data["conf"][i]
+                    })
+
+        # Strip trailing space and optionally append punctuation
+        extracted_text = extracted_text.strip()
+        if not extracted_text.endswith("."):
+                extracted_text += "."
+
+        cleaned = clean_text(extracted_text)
+
+        if not is_education_related(cleaned):
+            return Response(json.dumps({
+                "error": "Out of Scope ❌: The uploaded news does not appear related to the Philippine education system.",
+                "extractedText": cleaned or "No text detected.",
+                "textBoxes": text_boxes
+            }), mimetype='application/json'), 400
+
+        analytics = extract_analytics(cleaned)
+        total_flags = analytics["suspicious_words"] + analytics["informal_words"] + analytics["malicious_words"]
+        suggestions = get_suggestions(cleaned)
+
+        text_fake = predict_text(cleaned)
+        text_real = 1 - text_fake
+
+        cnn_real, cnn_fake = 0.5, 0.5
+        if cnn_model:
+            arr = prepare_image(image_bytes)
+            prediction = cnn_model.predict(arr, verbose=0)[0][0]
+            cnn_fake = prediction
+            cnn_real = 1 - prediction
+
+        combined_real = (text_real * 0.9) + (cnn_real * 0.1)
+        combined_fake = (text_fake * 0.9) + (cnn_fake * 0.1)
+
+        if total_flags >= 3:
+            combined_real -= 0.4
+            combined_fake += 0.4
+            adjustment_note = "⚠️ Lot of flagged words detected"
+        elif total_flags > 0:
+            combined_real -= total_flags * 0.10
+            combined_fake += total_flags * 0.10
+            adjustment_note = f"⚠️ {total_flags} flagged word(s)"
+        else:
+            combined_real += 0.3
+            combined_fake -= 0.3
+            adjustment_note = "✅ No flagged words"
+
+        total = combined_real + combined_fake
+        if total > 0:
+            combined_real /= total
+            combined_fake /= total
+
+        combined_real = round(max(0, min(1, combined_real)) * 100, 2)
+        combined_fake = round(max(0, min(1, combined_fake)) * 100, 2)
+
+        final_prediction = "Fake" if combined_fake > combined_real else "Real"
+        db.session.add(DetectionLog(final_prediction=final_prediction, real_score=combined_real, fake_score=combined_fake))
+        db.session.commit()
+
+        return Response(json.dumps({
+            "extractedText": cleaned or "No text detected.",
+            "textBoxes": text_boxes,
+            "real": combined_real,
+            "fake": combined_fake,
+            "final_prediction": final_prediction,
+            "prediction_confidence": round(max(combined_real, combined_fake), 2),
+            "analytics": analytics,
+            "adjustment_reason": adjustment_note,
+            "verdict": "✅ It seems to be real." if final_prediction == "Real" else "❌ It's more likely fake!",
+            "suggested_links": suggestions
+        }), mimetype='application/json')
+
+    except Exception as e:
+        print("❌ Error in /predict/image:", e)
+        return Response(json.dumps({"error": "Unexpected server error."}), mimetype='application/json'), 500
+
+@app.route("/analytics/today", methods=["GET"])
+def analytics_today():
+    try:
+        logs = DetectionLog.query.filter(db.func.date(DetectionLog.timestamp) == date.today()).all()
+        real_count = sum(1 for log in logs if log.final_prediction.lower() == 'real')
+        fake_count = sum(1 for log in logs if log.final_prediction.lower() == 'fake')
+        total_count = real_count + fake_count
+
+        return Response(json.dumps({
+            "date": date.today().isoformat(),
+            "total": total_count,
+            "real": real_count,
+            "fake": fake_count
+        }), mimetype='application/json')
+
+    except Exception as e:
+        print("❌ Error fetching analytics today:", e)
+        return Response(json.dumps({"error": "Database query failed."}), mimetype='application/json'), 500
+
+@app.route("/")
+def home():
+    return Response(json.dumps({"message": "CatchEd API is live"}), mimetype='application/json')
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True, use_reloader=False)
