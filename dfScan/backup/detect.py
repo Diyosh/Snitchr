@@ -1,3 +1,4 @@
+import random
 from flask import Flask, request, Response # type: ignore
 from flask_cors import CORS # type: ignore
 from flask_sqlalchemy import SQLAlchemy # type: ignore
@@ -143,7 +144,7 @@ def prepare_image(image_bytes):
 def preprocess_image_for_ocr(image):
     gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 
-    # Resize if too small
+   # Resize if too small
     h, w = gray.shape
     if h < 600 or w < 600:
         gray = cv2.resize(gray, (w * 2, h * 2), interpolation=cv2.INTER_LINEAR)
@@ -155,7 +156,7 @@ def preprocess_image_for_ocr(image):
     # Reduce noise
     blurred = cv2.GaussianBlur(enhanced, (3, 3), 0)
 
-    # Threshold using Otsu’s method
+    # Threshold
     thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
 
     return thresh
@@ -254,8 +255,15 @@ def predict_image():
             combined_real /= total
             combined_fake /= total
 
-        combined_real = round(max(0, min(1, combined_real)) * 100, 2)
-        combined_fake = round(max(0, min(1, combined_fake)) * 100, 2)
+        # Add random noise
+        noise = random.uniform(-0.5, 0.5)
+        combined_real += noise
+        combined_fake = 100 - combined_real
+
+        # Final clamp and rounding
+        combined_real = round(max(0, min(100, combined_real)), 2)
+        combined_fake = round(max(0, min(100, combined_fake)), 2)
+
 
         final_prediction = "Fake" if combined_fake > combined_real else "Real"
         db.session.add(DetectionLog(final_prediction=final_prediction, real_score=combined_real, fake_score=combined_fake))
