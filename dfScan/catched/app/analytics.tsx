@@ -17,7 +17,7 @@ export default function AnalyticsScreen() {
 
   const loadAnalytics = () => {
     setLoading(true);
-    fetch('http://192.168.0.7:5000/analytics/today')
+    fetch('https://catched-dump.onrender.com/analytics/today')
       .then(async res => {
         const contentType = res.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
