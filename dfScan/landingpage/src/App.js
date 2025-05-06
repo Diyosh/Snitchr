@@ -1,7 +1,7 @@
 import React from 'react';
 import './LandingPage.css';
 import logo from './logo.png';
-import qr from './qr.png'; // <-- You forgot to import the QR image
+import newqr from './newqr.png'; // <-- You forgot to import the QR image
 
 export default function LandingPage() {
   // Smooth scroll to download
@@ -101,17 +101,17 @@ export default function LandingPage() {
         <h2>Download CatchEd</h2>
         <p>🤖 Open this link on your device (or scan the QR code) to install the app:</p>
         <a
-          href="https://expo.dev/accounts/devjoshmndz/projects/snitchr-ui/builds/7716132a-aa75-49b9-9c5a-7ae7a0067a5e"
+          href="https://expo.dev/accounts/devjoshmndz/projects/snitchr-ui/builds/033ecc16-27b8-4c16-bd57-cf7fbc4497df"
           target="_blank"
           rel="noopener noreferrer"
           className="download-link"
         >
-          https://expo.dev/accounts/devjoshmndz/projects/snitchr-ui/builds/7716132a-aa75-49b9-9c5a-7ae7a0067a5e
+          https://expo.dev/accounts/devjoshmndz/projects/snitchr-ui/builds/033ecc16-27b8-4c16-bd57-cf7fbc4497df
         </a>
 
         {/* QR Code */}
         <div className="qr-container">
-          <img src={qr} alt="QR Code" className="qr-code" />
+          <img src={newqr} alt="QR Code" className="qr-code" />
         </div>
       </section>
 

@@ -264,7 +264,6 @@ def predict_image():
         combined_real = round(max(0, min(100, combined_real)), 2)
         combined_fake = round(max(0, min(100, combined_fake)), 2)
 
-
         final_prediction = "Fake" if combined_fake > combined_real else "Real"
         db.session.add(DetectionLog(final_prediction=final_prediction, real_score=combined_real, fake_score=combined_fake))
         db.session.commit()

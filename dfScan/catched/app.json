@@ -12,7 +12,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.CatchEd.snitchr",
       "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "We use your gallery to upload images."
+        "NSPhotoLibraryUsageDescription": "We use your gallery to upload images.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {

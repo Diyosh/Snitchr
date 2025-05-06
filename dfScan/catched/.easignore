@@ -1,0 +1,39 @@
+# Node modules (not needed for cloud builds)
+node_modules
+
+# Git folder
+.git
+
+# macOS system files
+.DS_Store
+
+# IDE/editor config
+.vscode
+.idea
+
+# Logs & build output
+*.log
+*.tmp
+*.swp
+*.bak
+*.zip
+
+# OS and build artifacts
+android/app/build
+ios/build
+web-build
+dist
+build
+
+# Large files/assets not needed for building
+assets/videos/
+assets/raw/
+*.psd
+*.xcf
+*.ai
+
+# Test and docs
+__tests__/
+test/
+docs/
+README.md
